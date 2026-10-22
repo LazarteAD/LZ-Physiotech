@@ -1,22 +1,41 @@
 {
-  "short_name": "LZPhysio",
-  "name": "LZ Physiotech - Telerehabilitación & Kinesiología",
-  "icons": [
-    {
-      "src": "icons/icon-192.png",
-      "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "icons/icon-512.png",
-      "type": "image/png",
-      "sizes": "512x512"
-    }
-  ],
-  "start_url": "./index.html",
-  "background_color": "#0F766E",
-  "theme_color": "#0F766E",
-  "display": "standalone",
-  "description": "Plataforma de telerehabilitación y seguimiento cinemático en tiempo real con inteligencia artificial."
-}
 
+  "name": "LZ Physiotech - Telerehabilitación y Kinesiología",
+
+  "short_name": "LZ Physiotech",
+
+  "start_url": "./index.html",
+
+  "display": "standalone",
+
+  "background_color": "#F3F4F6",
+
+  "theme_color": "#0F766E",
+
+  "description": "Plataforma de telerehabilitación, anamnesis y análisis biomecánico con inteligencia artificial.",
+
+  "icons": [
+
+    {
+
+      "src": "icons/icon-192.png",
+
+      "sizes": "192x192",
+
+      "type": "image/png"
+
+    },
+
+    {
+
+      "src": "icons/icon-512.png",
+
+      "sizes": "512x512",
+
+      "type": "image/png"
+
+    }
+
+  ]
+
+}
