@@ -1,48 +1,22 @@
 {
-
-  "name": "LZ Physiotech",
-
   "short_name": "LZPhysio",
-
-  "description": "Clinical Kinesiology & Tele-Rehabilitation PWA",
-
-  "start_url": "./index.html",
-
-  "display": "standalone",
-
-  "background_color": "#ffffff",
-
-  "theme_color": "#008080",
-
-  "orientation": "portrait-primary",
-
+  "name": "LZ Physiotech - Telerehabilitación & Kinesiología",
   "icons": [
-
     {
-
       "src": "icons/icon-192.png",
-
-      "sizes": "192x192",
-
       "type": "image/png",
-
-      "purpose": "any maskable"
-
+      "sizes": "192x192"
     },
-
     {
-
       "src": "icons/icon-512.png",
-
-      "sizes": "512x512",
-
       "type": "image/png",
-
-      "purpose": "any maskable"
-
+      "sizes": "512x512"
     }
-
-  ]
-
+  ],
+  "start_url": "./index.html",
+  "background_color": "#0F766E",
+  "theme_color": "#0F766E",
+  "display": "standalone",
+  "description": "Plataforma de telerehabilitación y seguimiento cinemático en tiempo real con inteligencia artificial."
 }
 
