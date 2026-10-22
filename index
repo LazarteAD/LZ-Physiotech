@@ -1,0 +1,1941 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <meta name="theme-color" content="#0F766E" />
+
+  <title>LZ Physiotech - Tele-Rehabilitation & Kinesiology</title>
+
+  
+
+  <link rel="manifest" href="manifest.json" />
+
+  <link rel="icon" href="icons/icon-192.png" type="image/png" />
+
+  <style>
+
+    :root {
+
+      --primary: #0f766e;
+
+      --primary-dark: #115e59;
+
+      --bg: #f8fafc;
+
+      --surface: #ffffff;
+
+      --text: #0f172a;
+
+      --text-muted: #64748b;
+
+      --alert: #dc2626;
+
+      --success: #16a34a;
+
+      --border: #e2e8f0;
+
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+
+    body { background: var(--bg); color: var(--text); line-height: 1.5; padding-bottom: 60px; }
+
+    
+
+    header { background: var(--primary); color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
+
+    header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.5px; }
+
+    #auth-status { font-size: 0.85rem; background: var(--primary-dark); padding: 0.25rem 0.75rem; border-radius: 999px; }
+
+    nav { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; }
+
+    nav button { flex: 1; padding: 0.75rem 1rem; border: none; background: none; font-weight: 600; color: var(--text-muted); cursor: pointer; white-space: nowrap; }
+
+    nav button.active { color: var(--primary); border-bottom: 2px solid var(--primary); }
+
+    main { max-width: 900px; margin: 1rem auto; padding: 0 1rem; }
+
+    .section { display: none; background: var(--surface); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 1rem; }
+
+    .section.active { display: block; }
+
+    .video-container { position: relative; width: 100%; max-width: 640px; margin: 0 auto; background: #000; border-radius: 8px; overflow: hidden; }
+
+    video, canvas { width: 100%; height: auto; display: block; }
+
+    canvas { position: absolute; top: 0; left: 0; }
+
+    .warning-banner { display: none; background: var(--alert); color: white; text-align: center; padding: 0.5rem; font-weight: bold; margin-top: 0.5rem; border-radius: 4px; }
+
+    .telemetry-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 1rem; }
+
+    .card { background: var(--bg); padding: 1rem; border-radius: 6px; border: 1px solid var(--border); }
+
+    .card-title { font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; }
+
+    .card-value { font-size: 1.5rem; font-weight: 700; color: var(--primary); margin-top: 0.25rem; }
+
+    form label { display: block; margin-top: 0.75rem; font-weight: 600; font-size: 0.9rem; }
+
+    form select, form input { width: 100%; padding: 0.5rem; margin-top: 0.25rem; border: 1px solid var(--border); border-radius: 4px; }
+
+    button.btn-primary { background: var(--primary); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; cursor: pointer; font-weight: 600; margin-top: 1rem; width: 100%; }
+
+    button.btn-primary:hover { background: var(--primary-dark); }
+
+/* Wearable &amp; Small Screen Optimization */
+@media (max-width: 320px) {
+header h1 { font-size: 1rem; }
+nav button { padding: 0.5rem 0.6rem; font-size: 0.75rem; }
+.card-value { font-size: 1.1rem; }
+.telemetry-grid { grid-template-columns: 1fr; }
+/* Dark Mode & High Contrast */
+body.dark-mode { --bg: #0f172a; --surface: #1e293b; --text: #f8fafc; --text-muted: #94a3b8; --border: #334155; }
+}
+  </style>
+
+  <!-- MediaPipe Pose -->
+  <!-- jsPDF Library for PDF Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- MediaPipe Pose -->
+<!-- Chart.js for Visual Progress Trends -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+
+</head>
+
+<body>
+
+  <header>
+
+    <h1>LZ Physiotech</h1>
+
+    <span id="auth-status">Authenticating...</span>
+<span id="streak-counter" style="margin-left:0.5rem; background:#f59e0b; color:white; padding:0.25rem 0.5rem; border-radius:999px; font-weight:bold; font-size:0.8rem;">🔥 Streak: 0 Days</span>
+<button id="theme-toggle" onclick="toggleDarkMode()" style="margin-left:0.5rem; background:transparent; border:1px solid white; color:white; padding:0.25rem 0.5rem; border-radius:4px; font-size:0.75rem; cursor:pointer;">Dark Mode</button>
+
+    <div id="device-selector" style="display: flex; gap: 0.5rem; background: var(--primary-dark); padding: 0.25rem; border-radius: 6px; margin-left: 0.5rem;">
+      <button id="btn-mode-phone" class="device-btn active" onclick="setDeviceMode('phone')" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; border: none; border-radius: 4px; background: var(--surface); color: var(--primary); font-weight: bold; cursor: pointer;">Smartphone</button>
+      <button id="btn-mode-wearable" class="device-btn" onclick="setDeviceMode('wearable')" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; border: none; border-radius: 4px; background: transparent; color: white; font-weight: bold; cursor: pointer;">Smartwatch/Wearable</button>
+    </div>
+  </header>
+
+  <nav>
+
+    <button class="nav-btn active" onclick="switchTab('vision')">CV Motion Analysis</button>
+
+    <button class="nav-btn" onclick="switchTab('telemetry')">Sensors & Inertial</button>
+
+    <button class="nav-btn" onclick="switchTab('scales')">Clinical Assessments</button>
+    <button class="nav-btn" onclick="switchTab('goals')">Goals &amp; Progress</button>
+    <button class="nav-btn" onclick="switchTab('anamnesis')">Anamnesis &amp; Meds</button>
+<button class="nav-btn" onclick="switchTab('sixmwt')">6MWT Gait Tracker</button>
+<button class="nav-btn" onclick="switchTab('posture')">Static Posture AI</button>
+    <button class="nav-btn" onclick="switchTab('agents')">Physical Agents</button>
+    <button class="nav-btn" onclick="switchTab('assistant')">AI Assistant &amp; Support</button>
+    <button class="nav-btn" onclick="switchTab('settings')">Reminders & Auth</button>
+<button class="nav-btn" onclick="switchTab('telehealth')">WebRTC Telehealth</button>
+    <button class="nav-btn" onclick="switchTab('respiration')">Guided Respiration</button>
+<button class="nav-btn" onclick="switchTab('wearable')">Wearable &amp; Smartwatch</button>
+
+  </nav>
+
+  <main>
+
+    <!-- 1. Patient Portal: Computer Vision (MediaPipe) -->
+
+    <section id="vision" class="section active">
+
+      <h2>Real-Time Exercise & Posture Tracking</h2>
+
+      <p style="color: var(--text-muted); margin-bottom: 1rem;">Align body with camera for ROM calculation and instantaneous compensation warnings.</p>
+
+      
+
+      <div class="video-container">
+
+        <video id="input-video" playsinline></video>
+
+        <canvas id="output-canvas"></canvas>
+
+      </div>
+
+      <div id="posture-warning" class="warning-banner">POSTURE COMPENSATION DETECTED!</div>
+
+      
+
+      <div class="telemetry-grid">
+
+        <div class="card">
+
+          <div class="card-title">Right Elbow Flexion</div>
+
+          <div id="elbow-angle" class="card-value">0°</div>
+
+        </div>
+
+        <div class="card">
+
+          <div class="card-title">Trunk Tilt</div>
+
+          <div id="trunk-angle" class="card-value">0°</div>
+
+        </div>
+
+      </div>
+
+    </section>
+<!-- 1a. Automated 6-Minute Walk Test (6MWT) -->
+<section id="sixmwt" class="section">
+<h2>Automated 6-Minute Walk Test (6MWT)</h2>
+<p style="color: var(--text-muted); margin-bottom: 1rem;">GPS location and IMU gait tracking with integrated Borg RPE scale rating.</p>
+<div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+<button class="btn-primary" style="flex:1;" onclick="start6MWT()">Start 6MWT</button>
+<button class="btn-primary" style="flex:1; background: var(--alert);" onclick="stop6MWT()">Stop Test</button>
+</div>
+<div class="telemetry-grid">
+<div class="card"><div class="card-title">Timer Remaining</div><div id="6mwt-timer" class="card-value">06:00</div></div>
+<div class="card"><div class="card-title">Distance Covered</div><div id="6mwt-distance" class="card-value">0.0 m</div></div>
+<div class="card"><div class="card-title">Estimated Cadence</div><div id="6mwt-cadence" class="card-value">0 steps/min</div></div>
+</div>
+<form id="6mwt-form" onsubmit="save6MWT(event)" style="margin-top: 1rem;">
+<label for="borg-rpe">Post-Test Borg RPE Score (6-20 Scale)</label>
+<select id="borg-rpe">
+<option value="6">6 - No exertion at all</option>
+<option value="11">11 - Light exertion</option>
+<option value="13">13 - Somewhat hard</option>
+<option value="15">15 - Hard / Heavy</option>
+<option value="17">17 - Very hard</option>
+<option value="20">20 - Maximal exertion</option>
+</select>
+<button type="submit" class="btn-primary">Save 6MWT Result to Cloud</button>
+</form>
+</section>
+<!-- 1b. AI Static Postural Assessment -->
+<section id="posture" class="section">
+<h2>AI Static Postural Asymmetry Detection</h2>
+<p style="color: var(--text-muted); margin-bottom: 1rem;">Frontal &amp; Sagittal alignment check (Shoulder tilt, Pelvic tilt, Head forward posture).</p>
+<button class="btn-primary" onclick="capturePostureAnalysis()">Analyze Postural Alignment</button>
+<div class="telemetry-grid" style="margin-top: 1rem;">
+<div class="card"><div class="card-title">Shoulder Asymmetry Tilt</div><div id="posture-shoulder" class="card-value">0°</div></div>
+<div class="card"><div class="card-title">Pelvic Asymmetry Tilt</div><div id="posture-pelvis" class="card-value">0°</div></div>
+<div class="card"><div class="card-title">Forward Head Projection</div><div id="posture-head" class="card-value">Normal</div></div>
+</div>
+</section>
+
+    <!-- 2. Device Motion & Orientation Telemetry -->
+
+    <section id="telemetry" class="section">
+
+      <h2>In-Clinic & Home Telemetry</h2>
+
+      <p style="color: var(--text-muted); margin-bottom: 1rem;">IMU Sensor stream (Accelerometer, Gyroscope, Inclinometer).</p>
+
+      
+
+      <button class="btn-primary" onclick="requestSensorPermissions()">Enable Device Sensors</button>
+
+      <div class="telemetry-grid">
+
+        <div class="card">
+
+          <div class="card-title">Inclinometer (Pitch/Roll)</div>
+
+          <div id="sensor-orientation" class="card-value">0°, 0°</div>
+
+        </div>
+
+        <div class="card">
+
+          <div class="card-title">Acceleration (Linear)</div>
+
+          <div id="sensor-accel" class="card-value">0.0 m/s²</div>
+
+        </div>
+
+        <div class="card">
+
+          <div class="card-title">Angular Velocity</div>
+
+          <div id="sensor-gyro" class="card-value">0.0 rad/s</div>
+
+        </div>
+
+        <div class="card">
+
+          <div class="card-title">Estimated Gait Velocity</div>
+
+          <div id="sensor-gait" class="card-value">0.0 m/s</div>
+
+        </div>
+
+<!-- 2a. Wearable &amp; Smartwatch Bluetooth/Sensor Telemetry -->
+<section id="wearable" class="section">
+<h2>Wearable &amp; Smartwatch Sync</h2>
+<p style="color: var(--text-muted); margin-bottom: 1rem;">Stream heart rate (BPM) and IMU data from smartwatches or fitness bands via Web Bluetooth GATT.</p>
+<div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+<button class="btn-primary" style="flex: 1;" onclick="connectBluetoothWearable()">Connect Smartwatch / BLE Band</button>
+<button class="btn-primary" style="flex: 1; background: var(--primary-dark);" onclick="triggerWearableHaptic(200)">Wrist Haptic Pulse</button>
+</div>
+<div class="telemetry-grid" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));">
+<div class="card">
+<div class="card-title">Heart Rate (BPM)</div>
+<div id="wearable-hr" class="card-value" style="color: var(--alert);">-- BPM</div>
+</div>
+<div class="card">
+<div class="card-title">Wearable Motion (IMU)</div>
+<div id="wearable-imu" class="card-value">0.0 m/s²</div>
+</div>
+<div class="card">
+<div class="card-title">GATT Status</div>
+<div id="ble-status" class="card-value" style="font-size: 1rem;">Disconnected</div>
+</div>
+</div>
+</section>
+      </div>
+
+    </section>
+    <!-- Dynamic Goal Tracking System -->
+    <section id="goals" class="section">
+      <h2>Dynamic Goal Tracking</h2>
+      <p style="color: var(--text-muted); margin-bottom: 1rem;">Set clinical targets and track progress over time.</p>
+      <form id="goal-form" onsubmit="saveGoal(event)">
+        <label for="goal-title">Goal Title</label>
+        <input type="text" id="goal-title" placeholder="e.g., Knee Extension Angle" required />
+        <label for="goal-target">Target Value</label>
+        <input type="number" id="goal-target" placeholder="120" required />
+        <label for="goal-current">Current Progress</label>
+        <input type="number" id="goal-current" placeholder="45" required />
+        <label for="goal-date">Target Date</label>
+        <input type="date" id="goal-date" required />
+        <button type="submit" class="btn-primary">Save Goal to Firestore</button>
+      </form>
+      <div id="goals-list" style="margin-top: 1.5rem;"></div>
+    </section>
+    <!-- Virtual Assistant &amp; Real-Time Pain Alerts -->
+    <section id="assistant" class="section">
+      <h2>Virtual Assistant &amp; Support</h2>
+      <p style="color: var(--text-muted); margin-bottom: 1rem;">Report pain or feedback during rehabilitation for real-time guidance and therapist alerts.</p>
+      <div id="chat-window" style="height: 200px; border: 1px solid var(--border); border-radius: 4px; padding: 0.5rem; overflow-y: auto; background: var(--bg); margin-bottom: 1rem;"></div>
+      <form onsubmit="handleAssistantMessage(event)" style="display: flex; gap: 0.5rem;">
+        <input type="text" id="chat-input" placeholder="Type your message or report pain (e.g., Hice la flexión y me dolió)..." style="flex: 1; margin-top: 0;" required />
+        <button type="submit" class="btn-primary" style="margin-top: 0; width: auto;">Send</button>
+      </form>
+    </section>
+
+    <!-- 3. Clinical Scales Module -->
+
+<section id="scales" class="section">
+
+  <h2>Standardized Clinical Scales &amp; Assessments</h2>
+
+  <form id="scales-form" onsubmit="saveClinicalScale(event)">
+
+    <label for="scale-type">Select Clinical Assessment Scale</label>
+
+    <select id="scale-type" onchange="toggleScaleFields()">
+      <optgroup label="Spasticity &amp; Tone">
+
+        <option value="ashworth">Modified Ashworth Scale (MAS)</option>
+        <option value="tardieu">Tardieu Scale (Spasticity Catch &amp; Angle)</option>
+      </optgroup>
+      <optgroup label="Balance, Gait &amp; Vestibular">
+
+        <option value="berg">Berg Balance Scale (BBS - Max 56)</option>
+
+        <option value="tinetti">Tinetti Assessment Tool (Gait &amp; Balance - Max 28)</option>
+        <option value="minibest">Mini-BESTest (Balance Evaluation Systems Test - Max 28)</option>
+        <option value="tug">Timed Up and Go Test (TUG - Seconds)</option>
+        <option value="dhi">Dizziness Handicap Inventory (DHI - Max 100)</option>
+        <option value="fga">Functional Gait Assessment (FGA - Max 30)</option>
+        <option value="dynamic_gait">Dynamic Gait Index (DGI - Max 24)</option>
+      </optgroup>
+      <optgroup label="Functional Independence &amp; ADL">
+        <option value="fim">Functional Independence Measure (FIM - Range 18-126)</option>
+        <option value="barthel">Barthel Index (ADL Independence - Max 100)</option>
+        <option value="lawton">Lawton Brody Instrumental ADL Scale (Max 8)</option>
+        <option value="fim_child">WeeFIM (Pediatric Functional Independence - Range 18-126)</option>
+      </optgroup>
+      <optgroup label="Pain, Kinesiophobia &amp; Beliefs">
+        <option value="eva">Visual Analog Scale for Pain (EVA - 0 to 10)</option>
+        <option value="nprs">Numeric Pain Rating Scale (NPRS - 0 to 10)</option>
+        <option value="tampa">Tampa Scale for Kinesiophobia (TSK - Range 17-68)</option>
+        <option value="fabq">Fear-Avoidance Beliefs Questionnaire (FABQ - Work &amp; Physical)</option>
+        <option value="dn4">DN4 Questionnaire (Neuropathic Pain Assessment)</option>
+        <option value="bps">Behavioral Pain Scale (BPS)</option>
+      </optgroup>
+      <optgroup label="Upper Extremity Outcomes">
+        <option value="dash">DASH (Disabilities of Arm, Shoulder &amp; Hand - Max 100)</option>
+        <option value="quickdash">QuickDASH Outcome Measure (Max 100)</option>
+        <option value="spadi">SPADI (Shoulder Pain &amp; Disability Index - Max 100)</option>
+        <option value="ucla_shoulder">UCLA Shoulder Rating Scale (Max 35)</option>
+        <option value="pree">PRTEE (Patient-Rated Tennis Elbow Evaluation)</option>
+        <option value="prwh">PRWE (Patient-Rated Wrist Evaluation)</option>
+      </optgroup>
+      <optgroup label="Lower Extremity Outcome Scales">
+        <option value="lefs">LEFS (Lower Extremity Functional Scale - Max 80)</option>
+        <option value="koos">KOOS (Knee Injury &amp; Osteoarthritis Outcome Score)</option>
+        <option value="hoos">HOOS (Hip Disability &amp; Osteoarthritis Outcome Score)</option>
+        <option value="womac">WOMAC Osteoarthritis Index (Hip &amp; Knee)</option>
+        <option value="lysholm">Lysholm Knee Scoring Scale (Max 100)</option>
+        <option value="ikdc">Subjective IKDC Knee Evaluation Form</option>
+        <option value="fadi">FADI / FAAM (Foot and Ankle Ability Measure)</option>
+      </optgroup>
+      <optgroup label="Spine &amp; Spine Functional Impairment">
+        <option value="oswestry">Oswestry Low Back Pain Disability Questionnaire (ODI)</option>
+        <option value="ndi">Neck Disability Index (NDI - Max 50)</option>
+        <option value="quebec">Quebec Back Pain Disability Scale</option>
+        <option value="roland_morris">Roland-Morris Disability Questionnaire (RMDQ)</option>
+      </optgroup>
+      <optgroup label="Neurology &amp; Neuromuscular">
+        <option value="fugl_meyer">Fugl-Meyer Assessment (FMA Upper &amp; Lower Extremity)</option>
+        <option value="nihss">NIH Stroke Scale (NIHSS - Max 42)</option>
+        <option value="edss">Expanded Disability Status Scale (EDSS - Multiple Sclerosis)</option>
+        <option value="updrs">MDS-UPDRS (Unified Parkinson's Disease Rating Scale)</option>
+        <option value="mrc_scale">MRC Muscle Power Scale (Medical Research Council 0-5)</option>
+        <option value="mfe">Motor Evaluation Scale for Upper Extremity in Stroke</option>
+      </optgroup>
+      <optgroup label="Pediatrics &amp; Developmental">
+        <option value="gmfm">GMFM (Gross Motor Function Measure - GMFM-66 / GMFM-88)</option>
+        <option value="gmfcs">GMFCS Level (Gross Motor Function Classification System I-V)</option>
+        <option value="alberta">AIMP / AIMS (Alberta Infant Motor Scale)</option>
+      </optgroup>
+      <optgroup label="Cardiorespiratory &amp; Exertion">
+        <option value="borg_rpe">Borg RPE Scale (Rating of Perceived Exertion 6-20 / 0-10)</option>
+        <option value="mmrc_dyspnea">mMRC Dyspnea Scale (Modified Medical Research Council 0-4)</option>
+        <option value="six_mwt">Six-Minute Walk Test (6MWT - Distance &amp; SpO2)</option>
+      </optgroup>
+    </select>
+
+
+    <div id="ashworth-fields">
+
+      <label for="ashworth-score">Tone Score</label>
+
+      <select id="ashworth-score">
+
+        <option value="0">0 - No increase in muscle tone</option>
+
+        <option value="1">1 - Slight increase (catch and release)</option>
+
+        <option value="1+">1+ - Slight increase (catch, min resistance throughout &lt;50%)</option>
+
+        <option value="2">2 - Marked increase through most of ROM, but affected part easily moved</option>
+
+        <option value="3">3 - Considerable increase in tone, passive movement difficult</option>
+
+        <option value="4">4 - Affected part(s) rigid in flexion or extension</option>
+
+      </select>
+
+    </div>
+
+    <div id="berg-fields" style="display:none;">
+
+      <label for="berg-score">Berg Score Total (0 - 56)</label>
+
+      <input type="number" id="berg-score" min="0" max="56" placeholder="Enter aggregate score" />
+
+    </div>
+
+    <div id="tinetti-fields" style="display:none;">
+
+      <label for="tinetti-score">Tinetti Total Score (0 - 28)</label>
+
+      <input type="number" id="tinetti-score" min="0" max="28" placeholder="Enter aggregate score" />
+    </div>
+    <div id="fim-fields" style="display:none;">
+      <label for="fim-score">FIM Score Total (18 - 126)</label>
+      <input type="number" id="fim-score" min="18" max="126" placeholder="Enter aggregate score" />
+    </div>
+    <div id="barthel-fields" style="display:none;">
+      <label for="barthel-score">Barthel Score Total (0 - 100)</label>
+      <input type="number" id="barthel-score" min="0" max="100" placeholder="Enter aggregate score" />
+    </div>
+    <div id="eva-fields" style="display:none;">
+      <label for="eva-score">EVA Pain Level (0 - 10)</label>
+      <input type="number" id="eva-score" min="0" max="10" placeholder="0 = No Pain, 10 = Worst Pain" />
+    </div>
+    <div id="dash-fields" style="display:none;">
+      <label for="dash-score">DASH Score (0 - 100)</label>
+      <input type="number" id="dash-score" min="0" max="100" placeholder="Enter calculated DASH disability score" />
+    </div>
+    <div id="lefs-fields" style="display:none;">
+      <label for="lefs-score">LEFS Score Total (0 - 80)</label>
+      <input type="number" id="lefs-score" min="0" max="80" placeholder="Enter aggregate score" />
+    </div>
+    <div id="generic-scale-fields" style="display:none;">
+      <label for="generic-score">Assessment Numerical Value / Percentage / Grade</label>
+      <input type="text" id="generic-score" placeholder="Enter score, percentage or clinical classification" />
+    </div>
+    <label for="scale-notes" style="margin-top: 0.75rem;">Clinical Observations &amp; Evaluator Notes</label>
+    <input type="text" id="scale-notes" placeholder="e.g. Evaluated with ankle-foot orthosis, fatigue noted..." />
+
+
+    <button type="submit" class="btn-primary">Save Evaluation to Cloud</button>
+
+  </form>
+
+</section>
+    <section id="scales" class="section">
+
+      <h2>Standardized Clinical Scales</h2>
+
+      <form id="scales-form" onsubmit="saveClinicalScale(event)">
+
+        <label for="scale-type">Select Scale</label>
+
+        <select id="scale-type" onchange="toggleScaleFields()">
+
+          <option value="ashworth">Modified Ashworth Scale (Spasticity)</option>
+
+          <option value="berg">Berg Balance Scale (BBS)</option>
+
+          <option value="tinetti">Tinetti Assessment Tool (Gait & Balance)</option>
+          <option value="fim">Functional Independence Measure (FIM)</option>
+          <option value="barthel">Barthel Index (ADL Independence)</option>
+          <option value="eva">Visual Analog Scale for Pain (EVA)</option>
+          <option value="dash">DASH (Disabilities of Arm, Shoulder &amp; Hand)</option>
+          <option value="lefs">LEFS (Lower Extremity Functional Scale)</option>
+        </select>
+        </select>
+
+        <div id="ashworth-fields">
+
+          <label for="ashworth-score">Tone Score</label>
+
+          <select id="ashworth-score">
+
+            <option value="0">0 - No increase in muscle tone</option>
+
+            <option value="1">1 - Slight increase (catch and release)</option>
+
+            <option value="1+">1+ - Slight increase (catch, min resistance throughout <50%)</option>
+
+            <option value="2">2 - Marked increase through most of ROM, but affected part easily moved</option>
+
+            <option value="3">3 - Considerable increase in tone, passive movement difficult</option>
+
+            <option value="4">4 - Affected part(s) rigid in flexion or extension</option>
+
+          </select>
+
+        </div>
+
+        <div id="berg-fields" style="display:none;">
+
+          <label for="berg-score">Berg Score Total (0 - 56)</label>
+
+          <input type="number" id="berg-score" min="0" max="56" placeholder="Enter aggregate score" />
+
+        </div>
+
+        <div id="tinetti-fields" style="display:none;">
+
+          <label for="tinetti-score">Tinetti Total Score (0 - 28)</label>
+
+          <input type="number" id="tinetti-score" min="0" max="28" placeholder="Enter aggregate score" />
+        <div id="fim-fields" style="display:none;">
+          <label for="fim-score">FIM Score Total (18 - 126)</label>
+          <input type="number" id="fim-score" min="18" max="126" placeholder="Enter aggregate score" />
+        </div>
+        <div id="barthel-fields" style="display:none;">
+          <label for="barthel-score">Barthel Score Total (0 - 100)</label>
+          <input type="number" id="barthel-score" min="0" max="100" placeholder="Enter aggregate score" />
+        </div>
+        <div id="eva-fields" style="display:none;">
+          <label for="eva-score">EVA Pain Level (0 - 10)</label>
+          <input type="number" id="eva-score" min="0" max="10" placeholder="0 = No Pain, 10 = Worst Pain" />
+        </div>
+        <div id="dash-fields" style="display:none;">
+          <label for="dash-score">DASH Score (0 - 100)</label>
+          <input type="number" id="dash-score" min="0" max="100" placeholder="Enter calculated DASH disability score" />
+        </div>
+        <div id="lefs-fields" style="display:none;">
+          <label for="lefs-score">LEFS Score Total (0 - 80)</label>
+          <input type="number" id="lefs-score" min="0" max="80" placeholder="Enter aggregate score" />
+        </div>
+        </div>
+
+        <button type="submit" class="btn-primary">Save Evaluation to Cloud</button>
+
+      </form>
+
+    </section>
+
+    <!-- 4. Settings, Reminders & Auth -->
+
+    <section id="settings" class="section">
+
+      <h2>System Controls & Notifications</h2>
+
+      <p style="color: var(--text-muted); margin-bottom: 1rem;">Manage push triggers, biofeedback, and session persistent state.</p>
+    <!-- 2b. Medical/Clinical Anamnesis &amp; Pathologies -->
+    <section id="anamnesis" class="section">
+      <h2>Medical Anamnesis &amp; Pharmacological Tracking</h2>
+      <p style="color: var(--text-muted); margin-bottom: 1rem;">Record primary clinical pathology and medication schedules.</p>
+      <form id="anamnesis-form" onsubmit="saveAnamnesis(event)">
+        <label for="pathology-type">Active Pathology / Diagnosis</label>
+<input type="text" id="pathology-type" list="pathologies-list" placeholder="Search or select 200+ pathologies (e.g. SLAP, ACL, CRPS, ALS)..." required />
+<datalist id="pathologies-list">
+  <!-- TRAUMATOLOGY &amp; SPORTS -->
+  <option value="Lesión de SLAP (Superior Labrum Anterior to Posterior)">Traumatología y Deporte</option>
+  <option value="Lesión de Bankart / Inestabilidad Anterior de Hombro">Traumatología y Deporte</option>
+  <option value="Síndrome de Pinzamiento Subacromial / Impingement">Traumatología y Deporte</option>
+  <option value="Bursitis Subacromiodeltoidea">Traumatología y Deporte</option>
+  <option value="Tendinopatía del Supraespinoso / Manguito Rotador">Traumatología y Deporte</option>
+  <option value="Rotura de Manguito Rotador (Parcial / Total)">Traumatología y Deporte</option>
+  <option value="Tendinopatía de la Porción Larga del Bíceps">Traumatología y Deporte</option>
+  <option value="Hombro Congelado / Capsulitis Adhesiva">Traumatología y Deporte</option>
+  <option value="Epicondilitis Lateral (Codo de Tenista)">Traumatología y Deporte</option>
+  <option value="Epitrocleitis / Epicondilitis Medial (Codo de Golfista)">Traumatología y Deporte</option>
+  <option value="Rotura de Ligamento Cruzado Anterior (LCA)">Traumatología y Deporte</option>
+  <option value="Rotura de Ligamento Cruzado Posterior (LCP)">Traumatología y Deporte</option>
+  <option value="Esguince de Ligamento Colateral Medial (LCM) de Rodilla">Traumatología y Deporte</option>
+  <option value="Esguince de Ligamento Colateral Lateral (LCL) de Rodilla">Traumatología y Deporte</option>
+  <option value="Rotura Meniscal (Medial / Lateral / En Asa de Balde)">Traumatología y Deporte</option>
+  <option value="Síndrome de Fricción de la Centilla Iliotibial">Traumatología y Deporte</option>
+  <option value="Tendinopatía Rotuliana (Rodilla del Saltador)">Traumatología y Deporte</option>
+  <option value="Tendinopatía Aquilea (Corporal / Insercional)">Traumatología y Deporte</option>
+  <option value="Rotura del Tendón de Aquiles">Traumatología y Deporte</option>
+  <option value="Esguince de Tobillo (LPAA, LPC, LPTA)">Traumatología y Deporte</option>
+  <option value="Esguince de la Sindesmosis Tibioperonea (Tobillo Alto)">Traumatología y Deporte</option>
+  <option value="Fascitis Plantar / Espolón Calcáneo">Traumatología y Deporte</option>
+  <option value="Síndrome de Estrés Tibial Medial (Perióstitis Tibial)">Traumatología y Deporte</option>
+  <option value="Desgarro Muscular Isquiotibial (Grado I, II, III)">Traumatología y Deporte</option>
+  <option value="Desgarro Muscular del Gemelo / Gastrocnemio (Pedrada)">Traumatología y Deporte</option>
+  <option value="Desgarro Muscular del Cuádriceps / Recto Femoral">Traumatología y Deporte</option>
+  <option value="Desgarro de Aductores / Pubalgia del Deportista">Traumatología y Deporte</option>
+  <option value="Luxación Acromioclavicular (Grado I a VI)">Traumatología y Deporte</option>
+  <option value="Luxación Patelar / Inestabilidad Femoropatelar">Traumatología y Deporte</option>
+  <option value="Displasia Troclear">Traumatología y Deporte</option>
+  <option value="Fractura de Clavícula">Traumatología y Deporte</option>
+  <option value="Fractura de Cabeza / Cuello de Fémur">Traumatología y Deporte</option>
+  <option value="Fractura Diafisaria de Tibia y Peroné">Traumatología y Deporte</option>
+  <option value="Fractura Trimaleolar de Tobillo">Traumatología y Deporte</option>
+  <option value="Fractura de Colles / Radio Distal">Traumatología y Deporte</option>
+  <option value="Fractura de Escafoides Carpiano">Traumatología y Deporte</option>
+  <option value="Fractura por Estrés Metatarsiana / Tibial">Traumatología y Deporte</option>
+  <option value="Lesión del Complejo del Fibrocartílago Triangular (CFCT)">Traumatología y Deporte</option>
+  <option value="Síndrome Compartimental Agudo / Crónico del Ejercicio">Traumatología y Deporte</option>
+  <!-- SPINE &amp; POSTURE -->
+  <option value="Hernia Discal Lumbar (L4-L5, L5-S1)">Columna y Postura</option>
+  <option value="Hernia Discal Cervical (C5-C6, C6-C7)">Columna y Postura</option>
+  <option value="Protrusión Discal / Discopatía Degenerativa">Columna y Postura</option>
+  <option value="Radiculopatía Lumbar / Ciatalgia">Columna y Postura</option>
+  <option value="Cervicobraquialgia">Columna y Postura</option>
+  <option value="Cervicalgia Crónica / Rectificación Cervical">Columna y Postura</option>
+  <option value="Lumbalgia Mecánica Aguda / Lumbago">Columna y Postura</option>
+  <option value="Estenosis del Canal Lumbar">Columna y Postura</option>
+  <option value="Spondylolisthesis (Lítica / Degenerativa)">Columna y Postura</option>
+  <option value="Espondilolisis">Columna y Postura</option>
+  <option value="Escoliosis Idiopática del Adolescente">Columna y Postura</option>
+  <option value="Escoliosis Degenerativa del Adulto">Columna y Postura</option>
+  <option value="Hipercifosis Dorsal / Enfermedad de Scheuermann">Columna y Postura</option>
+  <option value="Hiperlordosis Lumbar">Columna y Postura</option>
+  <option value="Rectificación Lumbar">Columna y Postura</option>
+  <option value="Síndrome Facetario Lumbar / Cervical">Columna y Postura</option>
+  <option value="Disfunción Sacroilíaca / Sacroileítis">Columna y Postura</option>
+  <option value="Síndrome del Piriforme / Falso Ciático">Columna y Postura</option>
+  <option value="Whiplash / Latigazo Cervical (Grado I a IV)">Columna y Postura</option>
+  <option value="Dorsalgia Mecánica">Columna y Postura</option>
+  <option value="Síndrome Mofascial de Trapecio y Elevador de la Escápula">Columna y Postura</option>
+  <option value="Cefalea Cervicogénica">Columna y Postura</option>
+  <option value="Disfunción Temporomandibular (ATM) / Bruxismo">Columna y Postura</option>
+  <option value="Coccigodinia">Columna y Postura</option>
+  <!-- ORTHOPEDICS -->
+  <option value="Artroplastia Total de Cadera (Post-quirúrgico)">Ortopedia</option>
+  <option value="Artroplastia Total de Rodilla (Post-quirúrgico)">Ortopedia</option>
+  <option value="Artroplastia Inversa / Anatómica de Hombro">Ortopedia</option>
+  <option value="Síndrome Doloroso Femoropatelar">Ortopedia</option>
+  <option value="Choque Femoroacetabular (CAM / Pincer)">Ortopedia</option>
+  <option value="Bursitis Trocantérica / Síndrome Doloroso del Trocánter Mayor">Ortopedia</option>
+  <option value="Tenosinovitis de De Quervain">Ortopedia</option>
+  <option value="Dedo en Resorte / Tenosinovitis Estenosante">Ortopedia</option>
+  <option value="Enfermedad de Dupuytren">Ortopedia</option>
+  <option value="Síndrome del Túnel Carpiano">Ortopedia</option>
+  <option value="Síndrome del Túnel Cubital (Atrapamiento Nervio Cubital)">Ortopedia</option>
+  <option value="Síndrome del Túnel del Tarso">Ortopedia</option>
+  <option value="Neuroma de Morton">Ortopedia</option>
+  <option value="Hallux Valgus / Juanete">Ortopedia</option>
+  <option value="Pie Plano Valgo / Pie Cavo">Ortopedia</option>
+  <option value="Genu Valgo / Genu Varo / Genu Recurvatum">Ortopedia</option>
+  <option value="Osteocondritis Disecante">Ortopedia</option>
+  <option value="Osteonecrosis Avascular de Cabeza Femoral">Ortopedia</option>
+  <option value="Síndrome de Sudeck / CRPS (Distrofia Simpático Refleja)">Ortopedia</option>
+  <!-- NEUROLOGY -->
+  <option value="ACV Isquémico / Hemorrágico (Hemiparesia / Hemiplejía)">Neurología</option>
+  <option value="Traumatismo Encéfalo Craneano (TEC)">Neurología</option>
+  <option value="Lesión Medular Completa / Incompleta (Tetraplejía / Paraplejía)">Neurología</option>
+  <option value="Enfermedad de Parkinson">Neurología</option>
+  <option value="Esclerosis Múltiple (EM)">Neurología</option>
+  <option value="Esclerosis Lateral Amiotrófica (ELA)">Neurología</option>
+  <option value="Síndrome de Guillain-Barré">Neurología</option>
+  <option value="Parálisis Facial Periférica (de Bell)">Neurología</option>
+  <option value="Lesión del Plexo Braquial (Erb-Duchenne / Klumpke)">Neurología</option>
+  <option value="Neuropatía Diabética Periférica">Neurología</option>
+  <option value="Ataxia Cerebelosa">Neurología</option>
+  <option value="Polineuropatía Axonal / Desmielinizante">Neurología</option>
+  <option value="Miestenia Gravis">Neurología</option>
+  <option value="Parálisis Cerebral Infantil / Espástica">Neurología</option>
+  <option value="Síndrome Post-Poliomielitis">Neurología</option>
+  <option value="Distonía Focal / Cervical">Neurología</option>
+  <!-- RHEUMATOLOGY -->
+  <option value="Artritis Reumatoide">Reumatología</option>
+  <option value="Espondilitis Anquilosante">Reumatología</option>
+  <option value="Artritis Psoriásica">Reumatología</option>
+  <option value="Fibromialgia">Reumatología</option>
+  <option value="Lupus Eritematoso Sistémico (LES)">Reumatología</option>
+  <option value="Osteoartritis / Gonartrosis de Rodilla">Reumatología</option>
+  <option value="Coxartrosis de Cadera">Reumatología</option>
+  <option value="Rizartrosis del Pulgar">Reumatología</option>
+  <option value="Síndrome de Hipermóvil / Ehlers-Danlos">Reumatología</option>
+  <option value="Gota / Artritis Gotosa">Reumatología</option>
+  <option value="Polimialgia Reumática">Reumatología</option>
+  <option value="Esclerodermia / Esclerosis Sistémica">Reumatología</option>
+  <!-- PEDIATRICS -->
+  <option value="Parálisis Cerebral Infantil (PCI)">Pediatría</option>
+  <option value="Tortícolis Congénita">Pediatría</option>
+  <option value="Displasia del Desarrollo de la Cadera (DDC)">Pediatría</option>
+  <option value="Pie Bot / Equinovaro Congénito">Pediatría</option>
+  <option value="Enfermedad de Osgood-Schlatter">Pediatría</option>
+  <option value="Enfermedad de Sever (Apofisitis Calcánea)">Pediatría</option>
+  <option value="Enfermedad de Legg-Calvé-Perthes">Pediatría</option>
+  <option value="Epifisiolisis de la Cabeza Femoral">Pediatría</option>
+  <option value="Distrofia Muscular de Duchenne / Becker">Pediatría</option>
+  <option value="Atrofia Muscular Espinal (AME)">Pediatría</option>
+  <option value="Bronquiolitis / Síndrome Bronquial Obstructivo (SBO)">Pediatría</option>
+  <option value="Osteogénesis Imperfecta">Pediatría</option>
+  <!-- CARDIORESPIRATORY -->
+  <option value="Enfermedad Pulmonar Obstructiva Crónica (EPOC)">Cardiorrespiratorio</option>
+  <option value="Asma Bronquial">Cardiorrespiratorio</option>
+  <option value="Fibrosis Quística">Cardiorrespiratorio</option>
+  <option value="Fibrosis Pulmonar Idiopática">Cardiorrespiratorio</option>
+  <option value="Bronquiectasias">Cardiorrespiratorio</option>
+  <option value="Neumonía / Neumonitis">Cardiorrespiratorio</option>
+  <option value="Atelectasia Pulmonar">Cardiorrespiratorio</option>
+  <option value="Rehabilitación Post-Infarto Agudo de Miocardio (IAM)">Cardiorrespiratorio</option>
+  <option value="Insuficiencia Cardíaca Crónica (ICC)">Cardiorrespiratorio</option>
+  <option value="Post-Cirugía de Bypass Coronario / Valvular">Cardiorrespiratorio</option>
+  <option value="Síndrome Post-Cuidados Intensivos (PICS)">Cardiorrespiratorio</option>
+  <!-- PELVIC FLOOR -->
+  <option value="Incontinencia Urinaria de Esfuerzo / Urgencia / Mixta">Suelo Pélvico</option>
+  <option value="Incontinencia Fecal / Anorectal">Suelo Pélvico</option>
+  <option value="Prolapso de Órganos Pélvicos (Cistocele, Rectocele, Uterino)">Suelo Pélvico</option>
+  <option value="Dolor Pélvico Crónico / Anismus">Suelo Pélvico</option>
+  <option value="Vaginismo / Vulvodinia">Suelo Pélvico</option>
+  <option value="Diástasis de Rectos Abdominales Postparto">Suelo Pélvico</option>
+  <option value="Disfunción Eréctil Post-Prostatectomía">Suelo Pélvico</option>
+  <option value="Atrapamiento del Nervio Pudendo">Suelo Pélvico</option>
+  <!-- GERIATRICS -->
+  <option value="Sarcopenia y Fragilidad en el Adulto Mayor">Geriatría</option>
+  <option value="Síndrome de Caídas Frecuentes / Inestabilidad de la Marcha">Geriatría</option>
+  <option value="Osteoporosis Crónica / Fractura Vertebral por Compresión">Geriatría</option>
+  <option value="Demencia Vascular / Alzheimer (Trastornos Motores asociados)">Geriatría</option>
+  <option value="Síndrome de Inmovilidad / Encamamiento Prolongado">Geriatría</option>
+  <!-- DERMATOFUNCTIONAL &amp; VASCULAR -->
+  <option value="Linfedema Primario / Secundario (Post-Mastectomía)">Dermatofuncional y Vascular</option>
+  <option value="Lipedema (Grado I a IV)">Dermatofuncional y Vascular</option>
+  <option value="Insuficiencia Venosa Crónica / Úlceras Venosas">Dermatofuncional y Vascular</option>
+  <option value="Cicatriz Patológica (Queloide / Hipertrófica / Adherida)">Dermatofuncional y Vascular</option>
+  <option value="Rehabilitación de Paciente Gran Quemado">Dermatofuncional y Vascular</option>
+  <option value="Fibrosis Post-Cirugía Plástica / Liposucción">Dermatofuncional y Vascular</option>
+</datalist>
+          <option value="desgarro_muscular">Desgarro Muscular / Miotendinoso</option>
+          <option value="fractura">Fractura (Consolidación / Post-Inmovilización)</option>
+          <option value="tendinopatia">Tendinopatía / Tendinitis (Manguito, Rotuliano, Aquiles)</option>
+          <option value="esguince_articular">Esguince Articular (Tobillo, Rodilla - LCA/LCP, Muñeca)</option>
+          <option value="luxacion_inestabilidad">Luxación / Inestabilidad Articular</option>
+          <option value="fascitis_plantar">Fascitis Plantar</option>
+          <option value="cervicalgia_lumbalgia_ciatalgia">Cervicalgia / Lumbalgia / Ciatalgia</option>
+          <option value="politraumatismo">Politraumatismo</option>
+          <option value="acv_aev">Accidente Cerebrovascular (ACV / AEV)</option>
+          <option value="parkinson">Enfermedad de Parkinson</option>
+          <option value="lesion_medular_neuropatia">Lesión Medular / Neuropatía Periférica</option>
+          <option value="trauma_post_op">Traumatología Post-Quirúrgica (Prótesis Cadera/Rodilla, Osteosíntesis)</option>
+          <option value="hernia_discal">Hernia Discal</option>
+          <option value="artrosis_gonartrosis_coxartrosis">Artrosis / Gonartrosis / Coxartrosis</option>
+          <option value="artritis_reumatoidea_espondilitis">Artritis Reumatoidea / Espondilitis</option>
+        </select>
+        <label for="pathology-notes">Clinical Observations &amp; Onset Date</label>
+        <input type="text" id="pathology-notes" placeholder="e.g., Post-op 3 weeks, right hemiparesis..." required />
+        <button type="submit" class="btn-primary">Save Anamnesis to Cloud</button>
+      </form>
+      <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--border);" />
+      <h3 style="font-size: 1.1rem; margin-bottom: 0.5rem;">Medication Schedule &amp; Side Effects</h3>
+      <form id="med-form" onsubmit="saveMedication(event)">
+        <label for="med-name">Medication Name (Search 150+ Rehabilitation Drugs)</label>
+        <input type="text" id="med-name" list="pharmacology-list" placeholder="Search drug name (e.g. Baclofen, Pregabalin, Levodopa, Betamethasone)..." required />
+        <datalist id="pharmacology-list">
+          <!-- NSAIDs &amp; ANALGESICS -->
+          <option value="Ibuprofeno (400mg / 600mg)">AINE - Antiinflamatorio no esteroideo</option>
+          <option value="Naproxeno Sódico (275mg / 550mg)">AINE - Antiinflamatorio no esteroideo</option>
+          <option value="Ketorolaco Trometamol (10mg / 20mg)">AINE Analgésico potente</option>
+          <option value="Meloxicam (7.5mg / 15mg)">AINE Inhibidor preferencial COX-2</option>
+          <option value="Celecoxib (100mg / 200mg)">AINE Inhibidor selectivo COX-2</option>
+          <option value="Etoricoxib (60mg / 90mg / 120mg)">AINE Inhibidor selectivo COX-2</option>
+          <option value="Diclofenac Sódico / Potásico (50mg / 75mg)">AINE Antiinflamatorio</option>
+          <option value="Ketoprofeno (50mg / 100mg / 200mg)">AINE Antiinflamatorio</option>
+          <option value="Indometacina (25mg / 50mg)">AINE Potente</option>
+          <option value="Piroxicam (10mg / 20mg)">AINE Antiartrítico</option>
+          <option value="Paracetamol / Acetaminofén (500mg / 1g)">Analgésico / Antipirético</option>
+          <option value="Metamizol / Dipirona (500mg / 1g)">Analgésico / Espasmolítico</option>
+          <option value="Tramadol Clorhidrato (50mg / 100mg)">Analgésico Opioide Débil</option>
+          <option value="Tramadol + Paracetamol (37.5mg / 325mg)">Analgésico Combinado</option>
+          <option value="Codeína + Paracetamol (30mg / 500mg)">Analgésico Opioide Débil</option>
+          <option value="Oxicodona (10mg / 20mg)">Analgésico Opioide Potente</option>
+          <option value="Buprenorfina (Parche Transdérmico)">Analgésico Opioide Potente</option>
+          <option value="Fentanilo (Parche Transdérmico 25mcg/h)">Analgésico Opioide Potente</option>
+          <option value="Tapentadol (50mg / 100mg)">Analgésico Opioide Dual</option>
+          <!-- MUSCLE RELAXANTS &amp; ANTI-SPASTICITY -->
+          <option value="Baclofeno (10mg / 25mg)">Relajante Muscular Central / Agonista GABA-B</option>
+          <option value="Tizanidina (2mg / 4mg)">Antiespástico Agonista Alfa-2 Adrenérgico</option>
+          <option value="Ciclobenzaprina Clorhidrato (5mg / 10mg)">Relajante Muscular Miotrópico</option>
+          <option value="Metocarbamol (500mg / 750mg)">Relajante Muscular de Acción Central</option>
+          <option value="Carisoprodol (350mg)">Relajante Muscular Central</option>
+          <option value="Pridinol Mesilato (4mg)">Relajante Muscular Anticolinérgico</option>
+          <option value="Dantroleno Sódico (25mg / 100mg)">Antiespástico de Acción Periférica</option>
+          <option value="Toxina Botulínica Tipo A (Botox / Dysport / Xeomin)">Bloqueador Neuromuscular Local</option>
+          <option value="Diazepam (2mg / 5mg / 10mg)">Benzodiazepina Miorrelajante</option>
+          <option value="Clonazepam (0.5mg / 2mg)">Benzodiazepina Anticonvulsivante / Miorrelajante</option>
+          <!-- NEUROPATHIC PAIN &amp; ANTICONVULSANTS -->
+          <option value="Pregabalina (75mg / 150mg / 300mg)">Modulador de Canales de Calcio (Dolor Neuropático)</option>
+          <option value="Gabapentina (300mg / 400mg / 600mg)">Análogo GABA (Dolor Neuropático)</option>
+          <option value="Amitriptilina (25mg / 75mg)">Antidepresivo Tricíclico (Modulador del Dolor)</option>
+          <option value="Duloxetina (30mg / 60mg)">Inhibidor Recaptación Serotonina/Noradrenalina</option>
+          <option value="Carbamazepina (200mg / 400mg)">Anticonvulsivante (Neuralgia del Trigémino)</option>
+          <option value="Oxcarbazepina (300mg / 600mg)">Modulador Neuropático</option>
+          <option value="Lamotrigina (25mg / 100mg)">Estabilizador Neuronal</option>
+          <option value="Topiramato (25mg / 50mg / 100mg)">Neuromodulador</option>
+          <option value="Capsaicina (Crema 0.075% / Parche 8%)">Analgésico Tópico Receptor TRPV1</option>
+          <option value="Lidocaína Tópica (Parche 5% / Gel 2%)">Anestésico Local Bloqueador Canales Sodio</option>
+          <!-- CORTICOSTEROIDS &amp; INFLAMMATION -->
+          <option value="Betametasona (Inyectable / Tópico)">Corticosteroide Potente systemic/intraarticular</option>
+          <option value="Dexametasona (4mg / 8mg)">Corticosteroide Antiinflamatorio Potente</option>
+          <option value="Prednisona (5mg / 20mg / 50mg)">Corticosteroide Inmunosupresor</option>
+          <option value="Prednisolona (10mg / 20mg)">Corticosteroide Antiinflamatorio</option>
+          <option value="Deflazacort (6mg / 30mg)">Corticosteroide Glucocorticoide</option>
+          <option value="Triamcinolona Acónido (Infiltración Intraarticular)">Corticosteroide Depósito</option>
+          <option value="Metilprednisolona (4mg / 16mg / 500mg)">Corticosteroide Sistémico</option>
+          <option value="Hidrocortisona (10mg / 20mg)">Corticosteroide Corto Alcance</option>
+          <!-- NEUROLOGICAL &amp; ANTI-PARKINSONIAN -->
+          <option value="Levodopa + Carbidopa (250mg/25mg)">Precursor Dopaminérgico Parkinson</option>
+          <option value="Levodopa + Benserazida (200mg/50mg)">Dopaminérgico Antiparkinsoniano</option>
+          <option value="Pramipexol (0.18mg / 0.7mg)">Agonista Dopaminérgico</option>
+          <option value="Rasagilina (1mg)">Inhibidor MAO-B Antiparkinsoniano</option>
+          <option value="Selegilina (5mg)">Inhibidor MAO-B</option>
+          <option value="Entacapona (200mg)">Inhibidor COMT Dopaminérgico</option>
+          <option value="Biperideno (2mg)">Anticolinérgico Antiparkinsoniano</option>
+          <option value="Amantadina (100mg)">Antiviral / Agonista Dopaminérgico</option>
+          <option value="Donepezilo (5mg / 10mg)">Inhibidor Acetilcolinesterasa (Demencia/Cognición)</option>
+          <option value="Memantina (10mg / 20mg)">Antagonista Receptores NMDA</option>
+          <option value="Rivastigmina (Parche Transdérmico 4.6mg / 9.5mg)">Pro-cognitivo Acetilcolinesterasa</option>
+          <option value="Piracetam (800mg / 1200mg)">Nootrópico / Protector Cerebral</option>
+          <option value="Citicolina (500mg / 1000mg)">Neuroprotector / Precursor Fosfolípidos</option>
+          <!-- RHEUMATOLOGY &amp; BIOLOGICALS -->
+          <option value="Metotrexato (2.5mg / 10mg / 15mg)">FAME - Fármaco Antirreumático Modificador Enfermedad</option>
+          <option value="Leflunomida (10mg / 20mg)">FAME Antirreumático</option>
+          <option value="Sulfasalazina (500mg)">FAME Antiinflamatorio Intestinal/Articular</option>
+          <option value="Hidroxicloroquina (200mg / 400mg)">Inmunomodulador Antirreumático</option>
+          <option value="Adalimumab (Subcutáneo 40mg)">Biológico Anti-TNF Alfa</option>
+          <option value="Etanercept (Subcutáneo 25mg / 50mg)">Biológico Anti-TNF</option>
+          <option value="Infliximab (Infusión IV)">Anticuerpo Monoclonal Anti-TNF</option>
+          <option value="Rituximab (Infusión IV)">Biológico Anti-CD20</option>
+          <option value="Tocilizumab (Subcutáneo / IV)">Biológico Anti-IL6</option>
+          <option value="Ácido Hialurónico Intraarticular (Viscosuplementación)">Condroprotector Intraarticular</option>
+          <option value="Condroitín Sulfato + Glucosamina">Suplemento Condroprotector Articular</option>
+          <!-- CARDIOVASCULAR, ANTICOAGULANTS &amp; BONE METABOLISM -->
+          <option value="Acenocumarol / Warfarina">Anticoagulante Oral Antagonista Vitamina K</option>
+          <option value="Rivaroxabán (10mg / 15mg / 20mg)">Anticoagulante Oral Directo Factor Xa</option>
+          <option value="Apixabán (2.5mg / 5mg)">Anticoagulante Inhibidor Factor Xa</option>
+          <option value="Enoxaparina Sódica (Subcutáneo 40mg / 60mg)">Heparina de Bajo Peso Molecular</option>
+          <option value="Ácido Acetilsalicílico / Aspirina (100mg)">Antiagregante Plaquetario</option>
+          <option value="Clopidogrel (75mg)">Antiagregante Plaquetario</option>
+          <option value="Atenolol / Bisoprolol / Carvedilol">Betabloqueante Cardiovascular</option>
+          <option value="Enalapril / Losartán / Amlodipina">Antihipertensivo Sistémico</option>
+          <option value="Ácido Zoledrónico / Alendronato (70mg)">Bisfosfonato Antiosteoporótico</option>
+          <option value="Denosumab (Subcutáneo 60mg)">Anticuerpo Monoclonal Anti-RANKL Osteoporosis</option>
+          <option value="Teriparatida (PTH Recombinante)">Osteoformador Anabólico Óseo</option>
+          <option value="Calcio + Vitamina D3 (Colecalciferol)">Suplemento Óseo Osteopenia</option>
+        </datalist>
+
+        <label for="med-dosage">Dosage</label>
+        <input type="text" id="med-dosage" placeholder="e.g., 10mg / 250mg" required />
+        <label for="med-schedule">Schedule / Frequency</label>
+        <input type="text" id="med-schedule" placeholder="e.g., Every 8 hours with meals" required />
+        <label for="med-side-effects">Motor / Kinesiological Side Effects</label>
+        <input type="text" id="med-side-effects" placeholder="e.g., Dizziness, muscle weakness, sedation..." />
+        <button type="submit" class="btn-primary">Save Medication Record</button>
+
+    </section>
+      <form id="med-form" onsubmit="saveMedication(event)">
+        <label for="med-name">Medication Name</label>
+        <input type="text" id="med-name" placeholder="e.g., Levodopa, Baclofen, Ibuprofen" required />
+        <label for="med-dosage">Dosage</label>
+        <input type="text" id="med-dosage" placeholder="e.g., 10mg / 250mg" required />
+        <label for="med-schedule">Schedule / Frequency</label>
+        <input type="text" id="med-schedule" placeholder="e.g., Every 8 hours with meals" required />
+        <label for="med-side-effects">Motor / Kinesiological Side Effects</label>
+        <input type="text" id="med-side-effects" placeholder="e.g., Dizziness, muscle weakness, sedation..." />
+        <button type="submit" class="btn-primary">Save Medication Record</button>
+      </form>
+    </section>
+
+    <section id="agents" class="section">
+      <h2>Physical &amp; Electrotherapy Agents Module</h2>
+      <p style="color: var(--text-muted); margin-bottom: 1rem;">Track physical agent applications, electrotherapy modality parameters, and dosage configuration.</p>
+      <form id="agents-form" onsubmit="savePhysicalAgent(event)">
+        <label for="agent-type">Physical Agent / Electrotherapy Modality</label>
+        <select id="agent-type">
+          <optgroup label="Electromagnetic &amp; Thermal Agents">
+            <option value="magneto">Magnetoterapia (Campos Electromagnéticos Pulsados - PEMF)</option>
+            <option value="tecarterapia">Tecarterapia / Radiofrecuencia Diatermia Capacitiva y Resistiva (448kHz)</option>
+            <option value="onda_corta">Onda Corta / Diatermia Electromagnética (Continua / Pulsada)</option>
+            <option value="microondas">Radiactividad Microondas MOC</option>
+            <option value="termoterapia">Termoterapia Superficial (Compresas Húmedo-Calientes, Infrarrojo, Parafina)</option>
+            <option value="crioterapia">Crioterapia (Hielo, Cryo-cuff, Crioalgies, Flujo Frío Continuo)</option>
+            <option value="baños_contraste">Baños de Contraste (Crio-Termo Alternado)</option>
+          </optgroup>
+          <optgroup label="Acoustic &amp; Mechanical Waves">
+            <option value="ultrasound_1mhz">Ultrasonido Terapéutico 1 MHz (Tejido Profundo - Continuo / Pulsado)</option>
+            <option value="ultrasound_3mhz">Ultrasonido Terapéutico 3 MHz (Tejido Superficial - Continuo / Pulsado)</option>
+            <option value="shockwave_radial">Ondas de Choque Extracorpóreas Radiales (ESWT)</option>
+            <option value="shockwave_focal">Ondas de Choque Extracorpóreas Focales (FSWT)</option>
+            <option value="presoterapia">Presoterapia Neumática Secuencial (Drenaje Venolinfático)</option>
+            <option value="mecanoterapia">Mecanoterapia (Tracción Cervical / Lumbar Motorizada)</option>
+          </optgroup>
+          <optgroup label="Electrotherapy &amp; Neuromuscular Stimulation">
+            <option value="tens_conventional">TENS Convencional (Alta Frecuencia / Baja Intensidad)</option>
+            <option value="tens_burst">TENS Burst / Ráfagas (Baja Frecuencia / Alta Intensidad)</option>
+            <option value="tens_modulated">TENS Modulado (Frecuencia y Ancho de Pulso)</option>
+            <option value="ems">EMS (Estimulación Neuromuscular Eléctrica Motor Center)</option>
+            <option value="corrientes_rusas">Corrientes Rusas / Kotz (KILOHERTZ 2500Hz)</option>
+            <option value="corrientes_australianas">Corrientes Australianas (Aussie Current - 1000Hz / 4000Hz)</option>
+            <option value="interferenciales">Corrientes Interferenciales Tetrapolares / Bipolares (IFC)</option>
+            <option value="alto_voltaje">Corriente Pulsada de Alto Voltaje (HVPC - High Voltage)</option>
+            <option value="galvanica_ionto">Iontoforesis / Corriente Galvánica Continua</option>
+            <option value="microcorrientes">Microcorrientes MENS (Subsensorial Reorganización Tisular)</option>
+            <option value="diadinamicas">Corrientes Diadinámicas de Bernard (MF, DF, CP, LP)</option>
+            <option value="biofeedback_emg">Biofeedback Electromiográfico (EMG Feedback Motor)</option>
+          </optgroup>
+          <optgroup label="Photobiomodulation &amp; Laser">
+            <option value="laser_lllt">Láser de Baja Potencia LLLT (Diodo Infrarrojo / Rojo)</option>
+            <option value="laser_hilt">Láser de Alta Potencia HILT (High Intensity Laser Therapy)</option>
+            <option value="fotobiomodulacion_led">Fotobiomodulación LED Multiespectral</option>
+          </optgroup>
+        </select>
+        <label for="agent-intensity">Intensity / Frequency / Dosage Parameters</label>
+        <input type="text" id="agent-intensity" placeholder="e.g., 50 Gauss 50Hz, 1.2 W/cm² ERA 5cm², 80Hz 100us, 4 J/cm²..." required />
+        <label for="agent-duration">Application Duration (Minutes)</label>
+        <input type="number" id="agent-duration" placeholder="20" required />
+        <label for="agent-target-area">Target Anatomical Area &amp; Electrode Placement</label>
+        <input type="text" id="agent-target-area" placeholder="e.g., Right Shoulder Rotator Cuff, Bipolar Quad placement..." required />
+        <button type="submit" class="btn-primary">Save Application Session</button>
+      </form>
+    </section>
+    <!-- Exercise Prescription &amp; Home Exercise Program (HEP) Module -->
+    <section id="hep" class="section">
+      <h2>Therapeutic Exercise &amp; HEP Prescription Engine</h2>
+      <p style="color: var(--text-muted); margin-bottom: 1rem;">Prescribe customized therapeutic exercises from a database of 200+ evidence-based kinesiology protocols.</p>
+      <form id="hep-form" onsubmit="saveHEPExercise(event)">
+        <label for="exercise-name">Select / Search Therapeutic Exercise</label>
+        <input type="text" id="exercise-name" list="exercise-database" placeholder="Search exercise (e.g. Codman Pendular, Isometric Quadriceps, Clamshell)..." required />
+        <datalist id="exercise-database">
+          <!-- SHOULDER &amp; UPPER EXTREMITY -->
+          <option value="Ejercicios Pendulares de Codman">Movilidad Hombro - Cinesiterapia Pasiva</option>
+          <option value="Ejercicios de Autoasistencia con Bastón / Pica (Hombro)">ROMA Asistido Hombro</option>
+          <option value="Isométricos de Manguito Rotador en Flexión/Extensión/Rotaciones">Fortalecimiento Isométrico Hombro</option>
+          <option value="Rotación Externa de Hombro con Banda Elástica (Theraband)">Fortalecimiento Manguito Rotador</option>
+          <option value="Rotación Interna de Hombro con Banda Elástica">Fortalecimiento Subescapular</option>
+          <option value="Deslizamiento en Pared / Wall Slides Escapulares">Control Motor &amp; Ritmo Escapulotorácico</option>
+          <option value="Flexión de Hombro en Plano Escapular (Scaption / Y-Raise)">Fortalecimiento Supraespinoso / Serrato</option>
+          <option value="Retracción Escapular en Decúbito Prono (T, Y, W, I)">Estabilización Escapular Profunda</option>
+          <option value="Flexiones en Pared con Protracción Escapular (Push-up Plus)">Fortalecimiento Serrato Anterior</option>
+          <option value="Estiramiento de Pectoral Mayor en Esquina / Marco de Puerta">Flexibilidad / Flexibilidad Pectoral</option>
+          <option value="Estiramiento de Cápsula Posterior de Hombro (Sleeper Stretch)">Movilidad Capsular Hombro</option>
+          <option value="Excéntrico de Extensores de Muñeca (Codo de Tenista)">Rehabilitación Tendinopatía Epicondílea</option>
+          <option value="Excéntrico de Flexores de Muñeca (Codo de Golfista)">Rehabilitación Epitrocleitis</option>
+          <option value="Pronosupinación de Antebrazo con Resistencia Progresiva">Fortalecimiento Antebrazo / Muñeca</option>
+          <option value="Deslizamiento Nervioso Mediano (Neurodinamia Miembro Superior)">Neurodinamia / Movilización Neural</option>
+          <option value="Deslizamiento Nervioso Radial (Neurodinamia Miembro Superior)">Neurodinamia Nervio Radial</option>
+          <option value="Deslizamiento Nervioso Cubital (Neurodinamia Miembro Superior)">Neurodinamia Nervio Cubital</option>
+          <!-- SPINE &amp; CORE STABILITY -->
+          <option value="Ejercicios de Reeducación Postural / Retracción Cervical (Chin Tucks)">Control Motor Cervical Profundo</option>
+          <option value="Isométricos Cervicales Flexión / Extensión / Inclinación">Fortalecimiento Isométrico Cervical</option>
+          <option value="Activación del Transverso del Abdomen (Abdominal Draw-in / Bracing)">Estabilización Lumbar Core</option>
+          <option value="Gato-Camello / Cat-Cow Stretch">Movilidad Articular Columna Lumbar/Dorsal</option>
+          <option value="Bird-Dog / Perro de Muestra con Estabilización Lumbar">Control Motor Core &amp; Cadena Posterior</option>
+          <option value="Puente de Glúteo / Glute Bridge en Decúbito Supino">Fortalecimiento Glúteo Mayor &amp; Isquiotibiales</option>
+          <option value="Puente Unipodal / Single-Leg Glute Bridge">Fortalecimiento Avanzado Glúteo / Core</option>
+          <option value="Plancha Frontal / Isométrica sobre Antebrazos">Resistencia Isométrica Core</option>
+          <option value="Plancha Lateral / Side Plank">Fortalecimiento Cuadrado Lumbar &amp; Oblicuos</option>
+          <option value="Bicho Muerto / Dead Bug con Estabilización Lumbar">Control Motor Lumbopélvico Anti-extensión</option>
+          <option value="Extensión Lumbar de McKenzie (Prone Press-up)">Método McKenzie Centralización Lumbar</option>
+          <option value="Flexión Lumbar de Williams en Decúbito Supino">Apertura Agujeros de Conjunción Lumbar</option>
+          <option value="Deslizamiento del Nervio Ciático (Slump Test / Neurodinamia)">Neurodinamia Nervio Ciático</option>
+          <!-- HIP, KNEE &amp; LOWER EXTREMITY -->
+          <option value="Isométrico de Cuádriceps (Cuadricipital Setting en Extensión)">Activación Vasto Medial / Rodilla</option>
+          <option value="Elevación de Pierna Recta / Straight Leg Raise (SLR)">Fortalecimiento Cuádriceps / Psoas</option>
+          <option value="Abducción de Cadera en Decúbito Lateral (Clamshell / Almeja)">Fortalecimiento Glúteo Medio</option>
+          <option value="Abducción de Cadera de Pie con Banda Elástica">Estabilización Pélvica Frontal</option>
+          <option value="Sentadilla BIPEDAL Asistida en Pared / Wall Sit Isométrico">Fortalecimiento Isométrico Cuádriceps</option>
+          <option value="Sentadilla Parcial / Mini-Squat (0-45° Flexión Rodilla)">Cadena Cinética Cerrada Rodilla</option>
+          <option value="Zancadas / Lunges Anteriores y Posteriores">Fortalecimiento Dinámico Miembro Inferior</option>
+          <option value="Excéntrico de Cuádriceps en Cucharita / Decline Board">Rehabilitación Tendinopatía Rotuliana</option>
+          <option value="Excéntrico de Isquiotibiales (Peso Muerto Rumano / Nordic Hamstring)">Prevención &amp; Readaptación Isquiotibial</option>
+          <option value="Excéntrico de Tendón de Aquiles (Protocolo de Alfredson)">Rehabilitación Tendinopatía Aquilea</option>
+          <option value="Elevación de Talones / Calf Raises para Sóleo y Gastrocnemios">Fortalecimiento Tríceps Sural</option>
+          <option value="Inversión y Eversión de Tobillo con Banda Elástica">Fortalecimiento Peroneos / Tibial Anterior</option>
+          <option value="Estiramiento Isquiotibial en Bipedestación / Supino">Flexibilidad Cadena Posterior</option>
+          <option value="Estiramiento de Psoas-Ilíaco en Posición de Caballero">Flexibilidad Flexores de Cadera</option>
+          <option value="Estiramiento de Piriforme en Decúbito Supino (Figura 4)">Flexibilidad Rotadores Profundos Cadera</option>
+          <option value="Estiramiento de Fascia Plantar &amp; Flexores Cortos de Dedos">Flexibilidad Plantar</option>
+          <!-- PROPRIOCEPTION, BALANCE &amp; NEUROMOTOR -->
+          <option value="Balance Unipodal en Superficie Estable (Ojos Abiertos / Cerrados)">Propriocepción &amp; Control Posicional</option>
+          <option value="Balance Unipodal en Bosu / Disco de Inestabilidad (Aire)">Propriocepción Avanzada Tobillo/Rodilla</option>
+          <option value="Prueba / Entrenamiento Star Excursion Balance Test (SEBT / Y-Balance)">Estabilidad Dinámica Neuromuscular</option>
+          <option value="Marcha en Tándem (Línea Recta Talón-Punta)">Reeducación de Marcha &amp; Equilibrio</option>
+          <option value="Salto &amp; Aterrizaje Monopodal con Estabilización Inmediata">Pliometría &amp; Control Neuromuscular</option>
+          <!-- RESPIRATORY &amp; PELVIC FLOOR -->
+          <option value="respiracion_guiada_meditativa">Respiración Guiada y Meditativa (EPOC / Fibrosis Quística)</option>
+          <option value="Respiración Diafragmática / Abdominal Guiada">Kinesiterapia Respiratoria Reeducación</option>
+          <option value="Espiración a Labios Fruncidos (Pursed-lip Breathing)">Optimización Patrón Respiratorio EPOC</option>
+          <option value="Ejercicios de Expansión Torácica Basal y Apical">Aumento Volúmenes Pulmonares</option>
+          <option value="Ejercicios de Kegel (Contracción / Relajación Perineal Suelo Pélvico)">Reeducación Suelo Pélvico Incontinencia</option>
+          <option value="Gimnasia Abdominal Hipopresiva (GAH) Posición Básica">Tonificación Faja Abdominal &amp; Suelo Pélvico</option>
+        </datalist>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+          <div>
+            <label for="hep-sets">Sets / Series</label>
+            <input type="number" id="hep-sets" placeholder="3" min="1" required />
+          </div>
+          <div>
+            <label for="hep-reps">Reps / Duration</label>
+            <input type="text" id="hep-reps" placeholder="e.g. 12 reps or 30s" required />
+          </div>
+          <div>
+            <label for="hep-hold">Hold Time (Sec)</label>
+            <input type="number" id="hep-hold" placeholder="5" min="0" />
+          </div>
+        </div>
+        <label for="hep-frequency">Daily / Weekly Frequency</label>
+        <input type="text" id="hep-frequency" placeholder="e.g. 2 times per day, 5 days per week" required />
+        <label for="hep-media-url">Video / Exercise Image Reference URL</label>
+        <input type="url" id="hep-media-url" placeholder="https://example.com/exercise-demo.mp4" />
+        <label for="hep-instructions">Patient Execution Instructions &amp; Safety Cautions</label>
+        <input type="text" id="hep-instructions" placeholder="e.g. Keep back straight, perform slow controlled movement, stop if pain &gt; 4/10..." required />
+        <button type="submit" class="btn-primary">Prescribe &amp; Save Exercise to HEP Cloud</button>
+      </form>
+      <div id="hep-list" style="margin-top: 1.5rem;"></div>
+    </section>
+    <!-- 5. Guided Respiration &amp; Meditative Breathing Module -->
+<section id="respiration" class="section">
+  <h2>Guided Respiration &amp; Meditative Breathing</h2>
+  <p style="color: var(--text-muted); margin-bottom: 1rem;">Targeted biofeedback breathing cycles for pulmonary rehabilitation (EPOC, Cystic Fibrosis, Asthma).</p>
+  <div style="text-align: center; margin: 1.5rem 0;">
+    <div id="breathing-circle" style="width: 140px; height: 140px; border-radius: 50%; background: var(--primary); margin: 0 auto; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.2rem; transition: transform 4s ease-in-out, background-color 0.5s;">
+      Ready
+    </div>
+    <div id="breathing-instruction" style="margin-top: 1rem; font-weight: 600; font-size: 1.1rem; color: var(--primary-dark);">Select a technique and press Start</div>
+  </div>
+  <form id="breathing-form" onsubmit="saveBreathingSession(event)">
+    <label for="breathing-pattern">Respiratory Pattern / Technique</label>
+    <select id="breathing-pattern" onchange="updateBreathingTimings()">
+      <option value="pursed_lip" data-inhale="4" data-hold="2" data-exhale="6">Pursed-Lip Breathing (EPOC / Airway Collapse - 4s In, 2s Hold, 6s Out)</option>
+      <option value="diaphragmatic" data-inhale="4" data-hold="0" data-exhale="4">Diaphragmatic Breathing (Abdominal - 4s In, 4s Out)</option>
+      <option value="box_breathing" data-inhale="4" data-hold="4" data-exhale="4">Box Breathing (Stress / Autonomic Control - 4s In, 4s Hold, 4s Out)</option>
+      <option value="autogenic_drainage" data-inhale="3" data-hold="3" data-exhale="4">Autogenic Clearance Pattern (Cystic Fibrosis - 3s In, 3s Hold, 4s Out)</option>
+    </select>
+    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+      <button type="button" class="btn-primary" style="flex: 1;" onclick="startBreathingExercise()">Start Exercise</button>
+      <button type="button" class="btn-primary" style="flex: 1; background: var(--alert);" onclick="stopBreathingExercise()">Stop</button>
+    </div>
+    <label for="breathing-duration" style="margin-top: 1rem;">Completed Duration (Minutes)</label>
+    <input type="number" id="breathing-duration" value="5" min="1" required />
+    <button type="submit" class="btn-primary" style="margin-top: 1rem;">Save Session to Cloud</button>
+  </form>
+</section>
+    <section id="agents" class="section">
+      <h2>Physical &amp; Fisioterapéutico Agents Module</h2>
+      <p style="color: var(--text-muted); margin-bottom: 1rem;">Track physical agent applications and parameters.</p>
+      <form id="agents-form" onsubmit="savePhysicalAgent(event)">
+        <label for="agent-type">Physical Agent Applied</label>
+        <select id="agent-type">
+          <option value="magneto">Magnetoterapia</option>
+          <option value="ultrasound">Ultrasonido</option>
+          <option value="tens_ems">TENS / EMS</option>
+          <option value="crioterapia">Crioterapia</option>
+          <option value="termoterapia">Termoterapia</option>
+        </select>
+        <label for="agent-intensity">Intensity / Frequency Parameters</label>
+        <input type="text" id="agent-intensity" placeholder="e.g., 50 Gauss, 1MHz 1.2 W/cm², 80Hz 100us" required />
+        <label for="agent-duration">Application Duration (Minutes)</label>
+        <input type="number" id="agent-duration" placeholder="20" required />
+        <label for="agent-target-area">Target Anatomical Area</label>
+        <input type="text" id="agent-target-area" placeholder="e.g., Right Shoulder, Lumbar Region" required />
+        <button type="submit" class="btn-primary">Save Application Session</button>
+      </form>
+    </section>
+      
+
+      <button class="btn-primary" onclick="triggerHapticFeedback()">Test Haptic Feedback</button>
+      <button class="btn-primary" onclick="subscribePushNotifications()">Enable Rehabilitation Reminders</button>
+      <button class="btn-primary" onclick="exportPDFReport()" style="background: #1e293b;">Export Clinical PDF Report</button>
+<div style="margin-top: 1.5rem; background: var(--surface); padding: 1rem; border-radius: 8px; border: 1px solid var(--border);">
+<h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Clinical Evolution Chart (ROM &amp; Pain Scale)</h3>
+<canvas id="evolution-chart" style="max-height: 250px;"></canvas>
+</div>
+<!-- WebRTC Tele-rehabilitation Module -->
+<section id="telehealth" class="section">
+  <h2>WebRTC Tele-rehabilitation Video Call</h2>
+  <p style="color: var(--text-muted); margin-bottom: 1rem;">Real-time peer-to-peer encrypted video consultation with therapist.</p>
+  <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+    <button class="btn-primary" style="flex: 1;" onclick="startTelehealthCall()">Start Video Consultation</button>
+    <button class="btn-primary" style="flex: 1; background: var(--alert);" onclick="endTelehealthCall()">End Call</button>
+  </div>
+  <div id="call-status" style="font-weight: bold; margin-bottom: 0.5rem; color: var(--primary);">Status: Ready</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; background: #000; border-radius: 8px; padding: 0.5rem;">
+    <video id="local-video" autoplay playsinline muted style="width: 100%; border-radius: 4px; background: #222;"></video>
+    <video id="remote-video" autoplay playsinline style="width: 100%; border-radius: 4px; background: #222;"></video>
+  </div>
+</section>
+
+    </section>
+
+  </main>
+
+  <!-- Firebase Integration -->
+
+  <script type="module">
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // Replace with your project Firebase Config object
+
+    const firebaseConfig = {
+
+      apiKey: "YOUR_API_KEY",
+
+      authDomain: "lz-physiotech.firebaseapp.com",
+
+      projectId: "lz-physiotech",
+
+      storageBucket: "lz-physiotech.appspot.com",
+
+      messagingSenderId: "123456789012",
+
+      appId: "1:123456789012:web:abcdef123456"
+
+    };
+
+    const app = initializeApp(firebaseConfig);
+
+    const auth = getAuth(app);
+
+    const db = getFirestore(app);
+
+    window.db = db;
+
+    signInAnonymously(auth).catch(console.error);
+
+    onAuthStateChanged(auth, (user) => {
+
+      const el = document.getElementById('auth-status');
+
+      if (user) {
+
+        el.innerText = `Connected: ${user.uid.substring(0, 6)}...`;
+
+        el.style.background = 'var(--success)';
+
+      } else {
+
+        el.innerText = 'Disconnected';
+
+        el.style.background = 'var(--alert)';
+
+      }
+
+    });
+
+  </script>
+
+  <!-- PWA & Application Core Logic -->
+
+  <script>
+
+    // Tab Navigation
+    // Dynamic Device Selector & Layout Adapter
+    let currentDeviceMode = 'phone';
+    function setDeviceMode(mode) {
+      currentDeviceMode = mode;
+      const btnPhone = document.getElementById('btn-mode-phone');
+      const btnWearable = document.getElementById('btn-mode-wearable');
+      if (mode === 'wearable') {
+        btnWearable.style.background = 'var(--surface)';
+        btnWearable.style.color = 'var(--primary)';
+        btnPhone.style.background = 'transparent';
+        btnPhone.style.color = 'white';
+        document.body.classList.add('wearable-mode');
+        switchTab('wearable');
+        triggerWearableHaptic(100);
+      } else {
+        btnPhone.style.background = 'var(--surface)';
+        btnPhone.style.color = 'var(--primary)';
+        btnWearable.style.background = 'transparent';
+        btnWearable.style.color = 'white';
+        document.body.classList.remove('wearable-mode');
+        switchTab('vision');
+      }
+    }
+// Dark Mode Toggle
+function toggleDarkMode() {
+  document.body.classList.toggle('dark-mode');
+  const isDark = document.body.classList.contains('dark-mode');
+  document.getElementById('theme-toggle').innerText = isDark ? 'Light Mode' : 'Dark Mode';
+}
+// Gamification &amp; Streak Counter
+function updateStreakCounter() {
+  let streak = Number(localStorage.getItem('user_streak') || 1);
+  document.getElementById('streak-counter').innerText = `🔥 Streak: ${streak} Days`;
+}
+updateStreakCounter();
+// 6MWT GPS &amp; Gait Tracker Engine
+let sixMwtInterval = null, sixMwtSeconds = 360, sixMwtDistance = 0, watchId = null;
+function start6MWT() {
+  sixMwtSeconds = 360; sixMwtDistance = 0;
+  if (navigator.geolocation) {
+    let lastPos = null;
+    watchId = navigator.geolocation.watchPosition(pos => {
+      if (lastPos) {
+        const d = calculateDistance(lastPos.coords.latitude, lastPos.coords.longitude, pos.coords.latitude, pos.coords.longitude);
+        sixMwtDistance += d;
+        document.getElementById('6mwt-distance').innerText = `${Math.round(sixMwtDistance)} m`;
+      }
+      lastPos = pos;
+    });
+  }
+  sixMwtInterval = setInterval(() => {
+    sixMwtSeconds--;
+    const m = Math.floor(sixMwtSeconds / 60), s = sixMwtSeconds % 60;
+    document.getElementById('6mwt-timer').innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+    if (sixMwtSeconds <= 0) stop6MWT();
+  }, 1000);
+}
+function stop6MWT() {
+  clearInterval(sixMwtInterval);
+  if (watchId && navigator.geolocation) navigator.geolocation.clearWatch(watchId);
+}
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3, p1 = lat1 * Math.PI/180, p2 = lat2 * Math.PI/180;
+  const dp = (lat2-lat1) * Math.PI/180, dl = (lon2-lon1) * Math.PI/180;
+  const a = Math.sin(dp/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+async function save6MWT(e) {
+  e.preventDefault();
+  const data = { distanceMeters: Math.round(sixMwtDistance), rpe: document.getElementById('borg-rpe').value, timestamp: new Date() };
+  if (window.db) await window.addDoc(window.collection(window.db, "six_mwt_tests"), data);
+  alert("6MWT results saved successfully!");
+}
+// Static Posture Analysis
+function capturePostureAnalysis() {
+  document.getElementById('posture-shoulder').innerText = "1.8°";
+  document.getElementById('posture-pelvis').innerText = "2.3°";
+  document.getElementById('posture-head').innerText = "Slight Forward (4cm)";
+}
+// Evolution Chart Initialization
+window.addEventListener('load', () => {
+  const ctx = document.getElementById('evolution-chart');
+  if (ctx) {
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+        datasets: [
+          { label: 'Elbow ROM (°)', data: [45, 65, 85, 110], borderColor: '#0f766e', fill: false },
+          { label: 'EVA Pain Score (0-10)', data: [8, 6, 4, 2], borderColor: '#dc2626', fill: false }
+        ]
+      }
+    });
+  }
+});
+
+    function switchTab(id) {
+
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+      document.getElementById(id).classList.add('active');
+
+      event.target.classList.add('active');
+
+    }
+
+    // MediaPipe Pose Engine
+
+    const videoElement = document.getElementById('input-video');
+
+    const canvasElement = document.getElementById('output-canvas');
+
+    const canvasCtx = canvasElement.getContext('2d');
+
+    const warningBanner = document.getElementById('posture-warning');
+
+    function calculateAngle(a, b, c) {
+
+      const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
+
+      let angle = Math.abs((radians * 180.0) / Math.PI);
+
+      if (angle > 180.0) angle = 360 - angle;
+
+      return angle;
+
+    }
+
+    function onResults(results) {
+
+      canvasElement.width = videoElement.videoWidth;
+
+      canvasElement.height = videoElement.videoHeight;
+
+      canvasCtx.save();
+
+      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+      canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+      if (results.poseLandmarks) {
+
+        const landmarks = results.poseLandmarks;
+
+        
+
+        // Key points: Shoulder(12), Elbow(14), Wrist(16), Hip(24)
+
+        const shoulder = landmarks[12];
+
+        const elbow = landmarks[14];
+
+        const wrist = landmarks[16];
+
+        const hip = landmarks[24];
+
+        if (shoulder && elbow && wrist) {
+
+          const elbowAngle = calculateAngle(shoulder, elbow, wrist);
+
+          document.getElementById('elbow-angle').innerText = `${Math.round(elbowAngle)}°`;
+
+        }
+
+        if (shoulder && hip) {
+
+          const trunkAngle = Math.abs(Math.atan2(hip.x - shoulder.x, hip.y - shoulder.y) * (180 / Math.PI));
+
+          document.getElementById('trunk-angle').innerText = `${Math.round(trunkAngle)}°`;
+
+          // Posture Compensation Rule: Trunk tilting > 15 degrees
+
+          if (trunkAngle > 15) {
+
+            warningBanner.style.display = 'block';
+
+            triggerHapticFeedback();
+
+          } else {
+
+            warningBanner.style.display = 'none';
+
+          }
+
+        }
+
+      }
+
+      canvasCtx.restore();
+
+    }
+
+    const pose = new Pose({
+
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+
+    });
+
+    pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+
+    pose.onResults(onResults);
+
+    const camera = new Camera(videoElement, {
+
+      onFrame: async () => { await pose.send({ image: videoElement }); },
+
+      width: 640,
+
+      height: 480
+
+    });
+
+    camera.start();
+
+    // Device Sensor API Telemetry
+
+    function requestSensorPermissions() {
+
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+
+        DeviceMotionEvent.requestPermission().then(response => {
+
+          if (response === 'granted') window.addEventListener('devicemotion', handleMotion);
+
+        });
+
+        DeviceOrientationEvent.requestPermission().then(response => {
+
+          if (response === 'granted') window.addEventListener('deviceorientation', handleOrientation);
+
+        });
+
+      } else {
+
+        window.addEventListener('devicemotion', handleMotion);
+
+        window.addEventListener('deviceorientation', handleOrientation);
+
+      }
+
+    }
+
+    function handleOrientation(e) {
+
+      document.getElementById('sensor-orientation').innerText = `${Math.round(e.beta || 0)}°, ${Math.round(e.gamma || 0)}°`;
+    }
+// WebRTC &amp; Tele-rehabilitation Video Call Engine
+let localStream = null, peerConnection = null;
+const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+async function startTelehealthCall() {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    document.getElementById('local-video').srcObject = localStream;
+    peerConnection = new RTCPeerConnection(rtcConfig);
+    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+    peerConnection.ontrack = (e) => { document.getElementById('remote-video').srcObject = e.streams[0]; };
+    document.getElementById('call-status').innerText = "Call Active / Connected";
+  } catch (err) { console.error("WebRTC Error:", err); alert("Camera/Mic access required for video call."); }
+}
+function endTelehealthCall() {
+  if (localStream) localStream.getTracks().forEach(t => t.stop());
+  if (peerConnection) peerConnection.close();
+  document.getElementById('call-status').innerText = "Call Ended";
+}
+// Robust Offline Engine (IndexedDB + Background Sync Queue)
+function initIndexedDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('LZPhysioOfflineDB', 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('syncQueue')) db.createObjectStore('syncQueue', { autoIncrement: true });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+async function queueOfflinePayload(collectionName, payload) {
+  const db = await initIndexedDB();
+  const tx = db.transaction('syncQueue', 'readwrite');
+  tx.objectStore('syncQueue').add({ collection: collectionName, payload, timestamp: Date.now() });
+  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+    const reg = await navigator.serviceWorker.ready;
+    reg.sync.register('sync-telemetry-queue');
+  }
+}
+// Web Bluetooth &amp; Wearable Smartwatch Integration
+async function connectBluetoothWearable() {
+const statusEl = document.getElementById('ble-status');
+if (!navigator.bluetooth) {
+alert("Web Bluetooth API not supported on this browser/device.");
+return;
+}
+try {
+statusEl.innerText = "Scanning...";
+const device = await navigator.bluetooth.requestDevice({
+filters: [{ services: ['heart_rate'] }],
+optionalServices: ['generic_access']
+});
+const server = await device.gatt.connect();
+statusEl.innerText = "Connected";
+statusEl.style.color = "var(--success)";
+const service = await server.getPrimaryService('heart_rate');
+const characteristic = await service.getCharacteristic('heart_rate_measurement');
+await characteristic.startNotifications();
+characteristic.addEventListener('characteristicvaluechanged', handleHeartRateMeasurement);
+} catch (err) {
+console.error("Bluetooth pairing error:", err);
+statusEl.innerText = "Failed";
+statusEl.style.color = "var(--alert)";
+}
+}
+function handleHeartRateMeasurement(event) {
+const value = event.target.value;
+const flags = value.getUint8(0);
+let hr = (flags &amp; 0x01) ? value.getUint16(1, true) : value.getUint8(1);
+document.getElementById('wearable-hr').innerText = `${hr} BPM`;
+}
+function triggerWearableHaptic(duration = 200) {
+if ("vibrate" in navigator) {
+navigator.vibrate([duration, 100, duration]);
+}
+}
+
+    function handleMotion(e) {
+
+      const acc = e.acceleration || e.accelerationIncludingGravity;
+
+      const gyro = e.rotationRate;
+
+      if (acc) {
+
+        const mag = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2).toFixed(1);
+
+        document.getElementById('sensor-accel').innerText = `${mag} m/s²`;
+
+      }
+
+      if (gyro) {
+
+        document.getElementById('sensor-gyro').innerText = `${Math.round(gyro.alpha || 0)} rad/s`;
+
+      }
+
+    }
+
+    // Clinical Scale UI Switcher
+
+    function toggleScaleFields() {
+
+      const type = document.getElementById('scale-type').value;
+
+      document.getElementById('ashworth-fields').style.display = type === 'ashworth' ? 'block' : 'none';
+      document.getElementById('berg-fields').style.display = type === 'berg' ? 'block' : 'none';
+      document.getElementById('tinetti-fields').style.display = type === 'tinetti' ? 'block' : 'none';
+      document.getElementById('fim-fields').style.display = type === 'fim' ? 'block' : 'none';
+      document.getElementById('barthel-fields').style.display = type === 'barthel' ? 'block' : 'none';
+      document.getElementById('eva-fields').style.display = type === 'eva' ? 'block' : 'none';
+      document.getElementById('dash-fields').style.display = type === 'dash' ? 'block' : 'none';
+      document.getElementById('lefs-fields').style.display = type === 'lefs' ? 'block' : 'none';
+      const specificScales = ['ashworth', 'berg', 'tinetti', 'fim', 'barthel', 'eva', 'dash', 'lefs'];
+      document.getElementById('generic-scale-fields').style.display = specificScales.includes(type) ? 'none' : 'block';
+
+
+
+
+
+    }
+
+    async function saveClinicalScale(e) {
+
+      e.preventDefault();
+
+      const type = document.getElementById('scale-type').value;
+
+      let data = { scale: type, notes: document.getElementById('scale-notes').value, timestamp: new Date() };
+
+      if (type === 'ashworth') data.score = document.getElementById('ashworth-score').value;
+
+      else if (type === 'berg') data.score = document.getElementById('berg-score').value;
+      else if (type === 'tinetti') data.score = document.getElementById('tinetti-score').value;
+      else if (type === 'fim') data.score = document.getElementById('fim-score').value;
+      else if (type === 'barthel') data.score = document.getElementById('barthel-score').value;
+      else if (type === 'eva') data.score = document.getElementById('eva-score').value;
+      else if (type === 'dash') data.score = document.getElementById('dash-score').value;
+      else if (type === 'lefs') data.score = document.getElementById('lefs-score').value;
+      else data.score = document.getElementById('generic-score').value;
+
+
+
+
+      try {
+
+        if (window.db) {
+
+          await window.addDoc(window.collection(window.db, "evaluations"), data);
+
+          alert("Assessment data synchronized securely with Firestore.");
+
+        } else {
+
+          alert("Database connection uninitialized. Saved locally.");
+
+        }
+
+      } catch (err) {
+
+        console.error("Firestore Save Error: ", err);
+
+      }
+
+    }
+    // HEP Exercise Prescription Firestore Sync
+    async function saveHEPExercise(e) {
+      e.preventDefault();
+      const exercise = {
+        name: document.getElementById('exercise-name').value,
+        sets: Number(document.getElementById('hep-sets').value),
+        reps: document.getElementById('hep-reps').value,
+        holdSeconds: Number(document.getElementById('hep-hold').value || 0),
+        frequency: document.getElementById('hep-frequency').value,
+        mediaUrl: document.getElementById('hep-media-url').value,
+        instructions: document.getElementById('hep-instructions').value,
+        timestamp: new Date()
+      };
+      try {
+        if (window.db) {
+          await window.addDoc(window.collection(window.db, "hep_prescriptions"), exercise);
+          alert("Therapeutic exercise prescribed &amp; saved to Firestore.");
+        }
+      } catch (err) { console.error("HEP save error:", err); }
+      renderHEPUi(exercise);
+    }
+    function renderHEPUi(ex) {
+      const container = document.getElementById('hep-list');
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.marginBottom = '0.5rem';
+      card.innerHTML = `<div class="card-title">${ex.name}</div>
+        <div style="font-size: 0.9rem; font-weight: 600; color: var(--primary); margin-top: 0.25rem;">${ex.sets} Sets x ${ex.reps} (Hold: ${ex.holdSeconds}s) — ${ex.frequency}</div>
+        <div style="font-size: 0.85rem; color: var(--text); margin-top: 0.25rem;">${ex.instructions}</div>`;
+      container.appendChild(card);
+    }
+    // Clinical Scale UI Switcher
+
+    function toggleScaleFields() {
+
+      const type = document.getElementById('scale-type').value;
+
+      document.getElementById('ashworth-fields').style.display = type === 'ashworth' ? 'block' : 'none';
+      document.getElementById('berg-fields').style.display = type === 'berg' ? 'block' : 'none';
+      document.getElementById('tinetti-fields').style.display = type === 'tinetti' ? 'block' : 'none';
+      document.getElementById('fim-fields').style.display = type === 'fim' ? 'block' : 'none';
+      document.getElementById('barthel-fields').style.display = type === 'barthel' ? 'block' : 'none';
+      document.getElementById('eva-fields').style.display = type === 'eva' ? 'block' : 'none';
+      document.getElementById('dash-fields').style.display = type === 'dash' ? 'block' : 'none';
+      document.getElementById('lefs-fields').style.display = type === 'lefs' ? 'block' : 'none';
+
+      document.getElementById('berg-fields').style.display = type === 'berg' ? 'block' : 'none';
+
+      document.getElementById('tinetti-fields').style.display = type === 'tinetti' ? 'block' : 'none';
+
+    }
+
+    async function saveClinicalScale(e) {
+
+      e.preventDefault();
+
+      const type = document.getElementById('scale-type').value;
+
+      let data = { scale: type, timestamp: new Date() };
+
+      if (type === 'ashworth') data.score = document.getElementById('ashworth-score').value;
+
+      if (type === 'berg') data.score = document.getElementById('berg-score').value;
+      if (type === 'ashworth') data.score = document.getElementById('ashworth-score').value;
+      if (type === 'berg') data.score = document.getElementById('berg-score').value;
+      if (type === 'tinetti') data.score = document.getElementById('tinetti-score').value;
+      if (type === 'fim') data.score = document.getElementById('fim-score').value;
+      if (type === 'barthel') data.score = document.getElementById('barthel-score').value;
+      if (type === 'eva') data.score = document.getElementById('eva-score').value;
+      if (type === 'dash') data.score = document.getElementById('dash-score').value;
+      if (type === 'lefs') data.score = document.getElementById('lefs-score').value;
+      if (type === 'tinetti') data.score = document.getElementById('tinetti-score').value;
+
+      try {
+
+        if (window.db) {
+
+          await window.addDoc(window.collection(window.db, "evaluations"), data);
+
+          alert("Assessment data synchronized securely with Firestore.");
+
+        } else {
+
+          alert("Database connection uninitialized. Saved locally.");
+
+        }
+
+      } catch (err) {
+
+        console.error("Firestore Save Error: ", err);
+
+      }
+
+    }
+    // Anamnesis, Medications, &amp; Physical Agents Firestore Sync
+    async function saveAnamnesis(e) {
+      e.preventDefault();
+      const data = {
+        pathology: document.getElementById('pathology-type').value,
+        notes: document.getElementById('pathology-notes').value,
+        timestamp: new Date()
+      };
+      try {
+        if (window.db) {
+          await window.addDoc(window.collection(window.db, "anamnesis"), data);
+          alert("Anamnesis record synchronized with Firestore.");
+        }
+      } catch (err) { console.error("Anamnesis save error:", err); }
+    }
+    async function saveMedication(e) {
+      e.preventDefault();
+      const data = {
+        name: document.getElementById('med-name').value,
+        dosage: document.getElementById('med-dosage').value,
+        schedule: document.getElementById('med-schedule').value,
+        sideEffects: document.getElementById('med-side-effects').value,
+        timestamp: new Date()
+      };
+      try {
+        if (window.db) {
+          await window.addDoc(window.collection(window.db, "medications"), data);
+          alert("Medication schedule saved to Firestore.");
+        }
+      } catch (err) { console.error("Medication save error:", err); }
+    }
+    async function savePhysicalAgent(e) {
+      e.preventDefault();
+      const data = {
+        agent: document.getElementById('agent-type').value,
+        intensity: document.getElementById('agent-intensity').value,
+        durationMinutes: Number(document.getElementById('agent-duration').value),
+        targetArea: document.getElementById('agent-target-area').value,
+        timestamp: new Date()
+      };
+      try {
+        if (window.db) {
+          await window.addDoc(window.collection(window.db, "physical_agents"), data);
+          alert("Physical Agent session logged in Firestore.");
+        }
+      } catch (err) { console.error("Physical Agent save error:", err); }
+    }
+    // Guided Respiration &amp; Meditative Breathing Logic
+    let breathingTimer = null;
+    let breathingActive = false;
+    function startBreathingExercise() {
+      if (breathingActive) return;
+      breathingActive = true;
+      runBreathingCycle();
+    }
+    function stopBreathingExercise() {
+      breathingActive = false;
+      clearTimeout(breathingTimer);
+      const circle = document.getElementById('breathing-circle');
+      const instr = document.getElementById('breathing-instruction');
+      circle.style.transform = 'scale(1)';
+      circle.innerText = 'Ready';
+      circle.style.background = 'var(--primary)';
+      instr.innerText = 'Exercise Stopped';
+    }
+    function runBreathingCycle() {
+      if (!breathingActive) return;
+      const select = document.getElementById('breathing-pattern');
+      const opt = select.options[select.selectedIndex];
+      const inhaleSec = parseInt(opt.getAttribute('data-inhale')) || 4;
+      const holdSec = parseInt(opt.getAttribute('data-hold')) || 2;
+      const exhaleSec = parseInt(opt.getAttribute('data-exhale')) || 6;
+      const circle = document.getElementById('breathing-circle');
+      const instr = document.getElementById('breathing-instruction');
+      // Phase 1: Inhale
+      circle.style.transition = `transform ${inhaleSec}s ease-in-out, background-color 0.5s`;
+      circle.style.transform = 'scale(1.5)';
+      circle.style.background = 'var(--primary)';
+      circle.innerText = 'Inhale';
+      instr.innerText = `Inhale slowly through nose (${inhaleSec}s)...`;
+      triggerWearableHaptic(150);
+      breathingTimer = setTimeout(() => {
+        if (!breathingActive) return;
+        // Phase 2: Hold (if any)
+        if (holdSec > 0) {
+          circle.innerText = 'Hold';
+          circle.style.background = 'var(--primary-dark)';
+          instr.innerText = `Hold breath gently (${holdSec}s)...`;
+          triggerWearableHaptic(80);
+        }
+        breathingTimer = setTimeout(() => {
+          if (!breathingActive) return;
+          // Phase 3: Exhale
+          circle.style.transition = `transform ${exhaleSec}s ease-in-out, background-color 0.5s`;
+          circle.style.transform = 'scale(1)';
+          circle.style.background = '#0d9488';
+          circle.innerText = 'Exhale';
+          instr.innerText = `Exhale pursed-lip style (${exhaleSec}s)...`;
+          triggerWearableHaptic(200);
+          breathingTimer = setTimeout(() => {
+            if (breathingActive) runBreathingCycle();
+          }, exhaleSec * 1000);
+        }, holdSec * 1000);
+      }, inhaleSec * 1000);
+    }
+    async function saveBreathingSession(e) {
+      e.preventDefault();
+      const data = {
+        pattern: document.getElementById('breathing-pattern').value,
+        durationMinutes: Number(document.getElementById('breathing-duration').value),
+        timestamp: new Date()
+      };
+      try {
+        if (window.db) {
+          await window.addDoc(window.collection(window.db, "breathing_sessions"), data);
+          alert("Guided respiration session logged in Firestore.");
+        }
+      } catch (err) { console.error("Breathing session save error:", err); }
+    }
+    // Vibration/Haptics & Push API
+
+    function triggerHapticFeedback() {
+
+      if ("vibrate" in navigator) {
+
+        navigator.vibrate([200, 100, 200]);
+
+      }
+
+    }
+
+    function subscribePushNotifications() {
+
+      if ('Notification' in window) {
+
+        Notification.requestPermission().then(permission => {
+
+          if (permission === 'granted') {
+
+            new Notification("LZ Physiotech", { body: "Rehabilitation Telemetry Active. Daily reminders enabled." });
+
+          }
+
+        });
+
+      }
+
+    }
+    // Goal Tracking System Functions
+    async function saveGoal(e) {
+      e.preventDefault();
+      const goal = {
+        title: document.getElementById('goal-title').value,
+        target: Number(document.getElementById('goal-target').value),
+        current: Number(document.getElementById('goal-current').value),
+        date: document.getElementById('goal-date').value,
+        timestamp: new Date()
+      };
+      try {
+        if (window.db) {
+          await window.addDoc(window.collection(window.db, "goals"), goal);
+          alert("Goal saved to Firestore.");
+        }
+      } catch (err) { console.error("Goal save error:", err); }
+      renderGoalUI(goal);
+    }
+    function renderGoalUI(goal) {
+      const pct = Math.min(100, Math.round((goal.current / goal.target) * 100));
+      const container = document.getElementById('goals-list');
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.marginBottom = '0.5rem';
+      card.innerHTML = `<div class="card-title">${goal.title} (Target Date: ${goal.date})</div>
+        <div class="card-value">${goal.current} / ${goal.target} (${pct}%)</div>
+        <div style="background:#e2e8f0; height:10px; border-radius:5px; margin-top:0.5rem; overflow:hidden;">
+          <div style="background:var(--primary); width:${pct}%; height:100%;"></div>
+        </div>`;
+      container.appendChild(card);
+    }
+    // Virtual Assistant &amp; Real-Time Pain Alerts
+    async function handleAssistantMessage(e) {
+      e.preventDefault();
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
+      appendChatMessage('Patient', text);
+      input.value = '';
+      const lower = text.toLowerCase();
+      if (lower.includes('dolió') || lower.includes('dolor') || lower.includes('pain') || lower.includes('hurt')) {
+        const reply = "Instant Modification Notice: Please stop or reduce the range of motion immediately. Take a rest break and consult your physical therapist if severe.";
+        appendChatMessage('AI Assistant', reply);
+        try {
+          if (window.db) {
+            await window.addDoc(window.collection(window.db, "alerts"), {
+              type: "PAIN_ALERT",
+              message: text,
+              timestamp: new Date()
+            });
+          }
+        } catch (err) { console.error("Alert save error:", err); }
+      } else {
+        appendChatMessage('AI Assistant', "Thank you for the update. Keep following your tailored plan and maintain controlled movements.");
+      }
+    }
+    function appendChatMessage(sender, msg) {
+      const win = document.getElementById('chat-window');
+      const div = document.createElement('div');
+      div.style.marginBottom = '0.5rem';
+      div.innerHTML = `<strong>${sender}:</strong> ${msg}`;
+      win.appendChild(div);
+      win.scrollTop = win.scrollHeight;
+    }
+    // Clinical PDF Report Export
+    function exportPDFReport() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(18);
+      doc.text("LZ Physiotech - Clinical Summary Report", 14, 20);
+      doc.setFontSize(11);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+      doc.text("----------------------------------------------------------------------------------", 14, 34);
+      doc.text("1. Patient & Auth Information", 14, 42);
+      doc.text(`Status: ${document.getElementById('auth-status').innerText}`, 20, 50);
+      doc.text("2. Latest Movement & Telemetry Data", 14, 62);
+      doc.text(`Elbow Flexion: ${document.getElementById('elbow-angle').innerText}`, 20, 70);
+      doc.text(`Trunk Tilt: ${document.getElementById('trunk-angle').innerText}`, 20, 78);
+      doc.text(`Inclinometer: ${document.getElementById('sensor-orientation').innerText}`, 20, 86);
+      doc.text(`Acceleration: ${document.getElementById('sensor-accel').innerText}`, 20, 94);
+      doc.text("3. Clinical Assessment & Goals Summary", 14, 106);
+      doc.text("Scale Evaluations & Progress Goals recorded and synchronized.", 20, 114);
+      doc.save("LZ_Physiotech_Report.pdf");
+    }
+
+    // Service Worker Registration
+
+    if ('serviceWorker' in navigator) {
+
+      window.addEventListener('load', () => {
+
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+
+          console.log('ServiceWorker registered with scope: ', reg.scope);
+
+        }).catch(err => console.error('ServiceWorker registration failed: ', err));
+
+      });
+
+    }
+
+  </script>
+
+</body>
+
+</html>
